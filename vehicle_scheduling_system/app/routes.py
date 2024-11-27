@@ -7,7 +7,7 @@ import qrcode
 from io import BytesIO
 from base64 import b64encode
 from app.models import Driver
-from .genetic_algorithm import run_genetic_algorithm
+from .genetic_algorithm import get_vehicle_data_from_db, run_genetic_algorithm
 from datetime import datetime
 from bson import ObjectId
 
@@ -29,13 +29,20 @@ main = Blueprint('main', __name__)
 #     current_app.mongo_db.optimized_schedule.insert_one({"schedule": schedule})  
 #     return jsonify({'schedule': schedule}), 200
 
-
 @main.route('/api/schedule', methods=['GET'])
 def get_schedule():
-    # Run the genetic algorithm
-    schedule = run_genetic_algorithm()
-    current_app.mongo_db.optimized_schedule.insert_one({"schedule": schedule})  # Save to MongoDB
-    return jsonify({'schedule': schedule}), 200
+    # Fetch vehicle data (schedule) from the database
+    schedule, _ = get_vehicle_data_from_db(current_app.mongo_db)  # Fetch from MongoDB
+
+    # Run the genetic algorithm and pass the fetched schedule
+    optimized_schedule = run_genetic_algorithm(schedule)  # Pass the fetched schedule to the algorithm
+    
+    # Save the optimized schedule to MongoDB
+    current_app.mongo_db.optimized_schedule.insert_one({"schedule": optimized_schedule})
+    
+    # Return the optimized schedule as a response
+    return jsonify({'schedule': optimized_schedule}), 200
+
 
 @main.route('/end_trip', methods=['POST'])
 def end_trip():
