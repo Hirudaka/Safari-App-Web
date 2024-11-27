@@ -3,13 +3,17 @@ import random
 import uuid
 from flask import Blueprint, jsonify, current_app, request
 from flask_cors import cross_origin
-
+import qrcode
+from io import BytesIO
+from base64 import b64encode
 from app.models import Driver
 from .genetic_algorithm import run_genetic_algorithm
 from datetime import datetime
-import qrcode
+from bson import ObjectId
 
 main = Blueprint('main', __name__)
+
+
 
 
 # @main.route('/api/schedule', methods=['GET'])
@@ -79,28 +83,89 @@ def end_trip():
 
 #     return jsonify({"message": "Trip ended", "end_time": end_time}), 200
 
-@main.route('/start_trip', methods=['POST'])
+@main.route('/api/start_trip', methods=['POST'])
 def start_trip():
     data = request.get_json()
 
-    # Check if driver_id is provided
+    # Validate required fields
     driver_id = data.get("driver_id")
-    if not driver_id:
-        return jsonify({"error": "Driver ID is required"}), 400
+    vehicle_id = data.get("vehicle_id")
+    if not driver_id or not vehicle_id:
+        return jsonify({"error": "Driver ID and Vehicle ID are required"}), 400
 
-    start_time = datetime.now()
-    current_app.mongo_db['trips'].insert_one({
+    # Default values
+    entry_time = datetime.now()  # Current time when the trip starts
+    trip_time = data.get("trip_time", 1)  # Default to 1 hour if not provided
+    congestion = data.get("congestion", 0)  # Default to 0
+    speed = data.get("speed", 0.0)  # Default to 0.0 km/h
+    location = data.get("location", [0.0, 0.0])  # Default to [0.0, 0.0]
+
+    # Insert trip details into the MongoDB collection
+    trip_data = {
         "driver_id": driver_id,
-        "start_time": start_time,
-        "status": "ongoing",
-    })
+        "vehicle_id": vehicle_id,
+        "entry_time": entry_time,
+        "trip_time": trip_time,
+        "congestion": congestion,
+        "speed": speed,
+        "location": location,
+        "status": "ongoing"  # Set status to 'ongoing' when trip starts
+    }
 
-    return jsonify({"message": "Trip started", "start_time": start_time}), 200
+    # Save to the database
+    db = current_app.mongo_db['trips']
+    inserted_trip = db.insert_one(trip_data)
+
+    # Add the inserted document ID (convert ObjectId to string for JSON compatibility)
+    trip_data["_id"] = str(inserted_trip.inserted_id)
+
+    return jsonify({
+        "message": "Trip started successfully.",
+        "trip_details": trip_data
+    }), 201
+ 
+@main.route('/api/trips', methods=['GET'])
+def get_trips():
+    """
+    Fetch trip details. Optionally filter by driver_id or vehicle_id.
+    """
+    db = current_app.mongo_db['trips']
+    
+    # Optional filters
+    driver_id = request.args.get('driver_id')
+    vehicle_id = request.args.get('vehicle_id')
+
+    # Build the query dynamically based on available filters
+    query = {}
+    if driver_id:
+        query["driver_id"] = driver_id
+    if vehicle_id:
+        query["vehicle_id"] = vehicle_id
+
+    # Fetch trips matching the query
+    trips = list(db.find(query))
+
+    # Convert ObjectId to string for JSON serialization
+    for trip in trips:
+        trip["_id"] = str(trip["_id"])
+        trip["entry_time"] = trip["entry_time"].isoformat()  # Convert datetime to ISO format
+
+    return jsonify({
+        "message": "Trips fetched successfully.",
+        "trips": trips
+    }), 200
+   
+    # Insert into the database and get the inserted document ID
+    inserted_trip = current_app.mongo_db['trips'].insert_one(trip_data)
+    trip_data["_id"] = str(inserted_trip.inserted_id)  # Convert ObjectId to string
+
+    return jsonify({
+        "message": "Trip started",
+        "trip_details": trip_data
+    }), 200
 
 
-import qrcode
-from io import BytesIO
-from base64 import b64encode
+
 
 @main.route('/register_driver', methods=['POST'])
 def register_driver():
