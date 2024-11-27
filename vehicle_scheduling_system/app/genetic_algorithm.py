@@ -1,5 +1,8 @@
 import random
 from pymongo import MongoClient
+from app.config import db
+from app.models import Trip
+
 
 # Configuration
 population_size = 10  
@@ -63,27 +66,55 @@ def generate_random_schedule():
         schedule.append(vehicle)
     return schedule
 
+from pymongo import MongoClient
+
 # MongoDB connection
 def connect_to_db():
     client = MongoClient("mongodb://localhost:27017/")
     db = client['vehicle_scheduling']
     return db
 
-# Fetch vehicle data from MongoDB (optional for actual data-driven scheduling)
-def get_vehicle_data_from_db(db, num_vehicles):
-    vehicles = db.vehicles.find().limit(num_vehicles)
-    return [{"entry_time": vehicle["entry_time"],
-             "trip_time": vehicle["trip_time"],
-             "congestion": vehicle["congestion"],
-             "speed": vehicle["speed"]} for vehicle in vehicles]
+# Fetch vehicle trip data from MongoDB
+def get_vehicle_data_from_db(db):
+    trips = db.trips.find({"status": "ongoing"})  # Adjust the filter as needed
+    trip_list = list(trips)  # Convert cursor to a list
+    print("Matching trips:", trip_list)  # Debugging log
+
+    schedule = []
+    for trip in trip_list:
+        vehicle = {
+            "entry_time": trip["entry_time"].hour,  # Ensure entry_time is datetime
+            "trip_time": trip["trip_time"],         # Ensure trip_time exists
+            "congestion": trip.get("congestion", 0), # Handle missing congestion
+            "speed": trip.get("speed", 30),         # Handle missing speed
+        }
+        schedule.append(vehicle)
+    
+    trip_count = len(schedule)
+    return schedule, trip_count
 
 # Example MongoDB usage: fetch and use data
 def fetch_and_schedule_from_db():
     db = connect_to_db()
-    vehicles_data = get_vehicle_data_from_db(db, num_vehicles)
+    vehicles_data = get_vehicle_data_from_db(db)
     print(f"Fetched vehicle data: {vehicles_data}")
     best_schedule = run_genetic_algorithm()
     print(f"Best schedule: {best_schedule}")
 
 # Run the algorithm
 fetch_and_schedule_from_db()
+
+
+def get_ongoing_trips():
+    cursor = db.trips.find({ "status": "ongoing" })
+    for trip in cursor:
+        print(trip)  # This will print each trip document
+
+# Test the function
+get_ongoing_trips()
+
+
+
+
+
+

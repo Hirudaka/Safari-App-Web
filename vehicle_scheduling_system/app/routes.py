@@ -154,18 +154,6 @@ def get_trips():
         "message": "Trips fetched successfully.",
         "trips": trips
     }), 200
-   
-    # Insert into the database and get the inserted document ID
-    inserted_trip = current_app.mongo_db['trips'].insert_one(trip_data)
-    trip_data["_id"] = str(inserted_trip.inserted_id)  # Convert ObjectId to string
-
-    return jsonify({
-        "message": "Trip started",
-        "trip_details": trip_data
-    }), 200
-
-
-
 
 @main.route('/register_driver', methods=['POST'])
 def register_driver():

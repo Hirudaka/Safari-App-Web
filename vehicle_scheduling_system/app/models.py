@@ -44,6 +44,7 @@ class Trip(Document):
     vehicle_id = StringField(required=True, unique=True)
     entry_time = DateTimeField(required=True)
     trip_time = IntField(required=True)  # in hours
+    status = StringField(required=True) 
     congestion = IntField(default=0)
     speed = FloatField(FloatField())  # Current speed in km/h
     location = ListField(FloatField())  # [latitude, longitude]
