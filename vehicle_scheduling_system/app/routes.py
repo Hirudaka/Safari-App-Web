@@ -7,9 +7,11 @@ import qrcode
 from io import BytesIO
 from base64 import b64encode
 from app.models import Driver
+from app.models import Trip
 from .genetic_algorithm import get_vehicle_data_from_db, run_genetic_algorithm
 from datetime import datetime
 from bson import ObjectId
+
 
 main = Blueprint('main', __name__)
 
@@ -118,6 +120,7 @@ def get_optimized_schedule():
 
 #     return jsonify({"message": "Trip ended", "end_time": end_time}), 200
 
+
 @main.route('/api/start_trip', methods=['POST'])
 def start_trip():
     data = request.get_json()
@@ -132,8 +135,12 @@ def start_trip():
     entry_time = datetime.now()  # Current time when the trip starts
     trip_time = data.get("trip_time", 1)  # Default to 1 hour if not provided
     congestion = data.get("congestion", 0)  # Default to 0
-    speed = data.get("speed", 0.0)  # Default to 0.0 km/h
-    location = data.get("location", [0.0, 0.0])  # Default to [0.0, 0.0]
+    speed = data.get("speed", [])  # Default to an empty list for speeds
+    locations = data.get("locations", [])  # Default to an empty list for locations
+
+    # Validate locations (each entry should be a pair of latitude and longitude)
+    if not all(isinstance(loc, list) and len(loc) == 2 for loc in locations):
+        return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
 
     # Insert trip details into the MongoDB collection
     trip_data = {
@@ -143,7 +150,7 @@ def start_trip():
         "trip_time": trip_time,
         "congestion": congestion,
         "speed": speed,
-        "location": location,
+        "locations": locations,
         "status": "ongoing"  # Set status to 'ongoing' when trip starts
     }
 
@@ -158,7 +165,40 @@ def start_trip():
         "message": "Trip started successfully.",
         "trip_details": trip_data
     }), 201
- 
+
+@main.route('/api/trips/<trip_id>/add_locations', methods=['PUT'])
+def append_locations(trip_id):
+    data = request.get_json()
+    new_locations = data.get("locations", [])
+
+    # Validate new locations
+    if not all(isinstance(loc, list) and len(loc) == 2 for loc in new_locations):
+        return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
+
+    # Convert trip_id string to ObjectId
+    try:
+        trip_id_obj = ObjectId(trip_id)
+    except Exception as e:
+        return jsonify({"error": "Invalid ObjectId format"}), 400
+
+    # Find the trip
+    trip = current_app.mongo_db['trips'].find_one({"_id": trip_id_obj})
+    if not trip:
+        return jsonify({"error": "Trip not found"}), 404
+
+    # Append new locations to the existing ones
+    current_locations = trip.get("locations", [])
+    updated_locations = current_locations + new_locations
+
+    # Update the trip in the database
+    current_app.mongo_db['trips'].update_one(
+        {"_id": trip_id_obj},
+        {"$set": {"locations": updated_locations}}
+    )
+
+    return jsonify({"message": "Locations added successfully", "updated_locations": updated_locations}), 200
+
+
 @main.route('/api/trips', methods=['GET'])
 def get_trips():
     """
@@ -267,3 +307,33 @@ def get_qr_code(driver_id):
         "driver_id": driver.driver_id,
         "qr_code_image": qr_code_image  # Send the Base64 image
     }), 200
+
+
+@main.route('/api/trips/<trip_id>', methods=['GET'])
+def get_trip_by_id(trip_id):
+    try:
+        # Convert string to ObjectId
+        trip_id_obj = ObjectId(trip_id)
+        print(f"Looking for trip with ID: {trip_id_obj}")  # Debug log
+        
+        # Query the trips collection directly
+        db = current_app.mongo_db['trips']
+        trip = db.find_one({"_id": trip_id_obj})
+        
+        if trip:
+            # Convert ObjectId and datetime fields to string for JSON serialization
+            trip["_id"] = str(trip["_id"])
+            if "entry_time" in trip:
+                trip["entry_time"] = trip["entry_time"].isoformat()
+            if "end_time" in trip:
+                trip["end_time"] = trip["end_time"].isoformat()
+
+            print(f"Found trip: {trip}")  # Debug log
+            return jsonify(trip), 200
+        else:
+            print("Trip not found")  # Debug log
+            return jsonify({'error': 'Trip not found'}), 404
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")  # Debug log
+        return jsonify({'error': str(e)}), 500

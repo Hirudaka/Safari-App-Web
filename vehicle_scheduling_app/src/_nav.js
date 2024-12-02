@@ -27,15 +27,22 @@ const _nav = [
       text: 'NEW',
     },
   },
+
   {
-    component: CNavTitle,
-    name: 'Components',
-  },
-  {
-    component: CNavGroup,
+    component: CNavItem,
     name: 'Pages',
     icon: <CIcon icon={cilStar} customClassName="nav-icon" />,
     items: [
+      {
+        component: CNavItem,
+        name: 'Schedules',
+        to: '/schedules',
+      },
+      {
+        component: CNavItem,
+        name: 'Drivers',
+        to: '/drivers',
+      },
       {
         component: CNavItem,
         name: 'Login',

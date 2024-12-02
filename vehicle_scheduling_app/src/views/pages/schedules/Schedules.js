@@ -69,7 +69,7 @@ const Schedules = () => {
 
   return (
     <CRow>
-      <CCol xs>
+      <CCol lg={12} md={10} sm={12} className="mx-auto">
         <CCard className="mb-4">
           <CCardHeader>
             Trip Schedules
@@ -108,12 +108,29 @@ const Schedules = () => {
                           className="pop-in-row"
                           style={{ animationDelay: `${0.1 * index}s` }} // Stagger animation delay for each row
                         >
-                          <CTableDataCell>Schedule {index + 1}</CTableDataCell>
-                          <CTableDataCell>{entryTimeFormatted}</CTableDataCell>
-                          <CTableDataCell>{trip.congestion}</CTableDataCell>
-                          <CTableDataCell>{tripTimeFormatted}</CTableDataCell>
-                          <CTableDataCell>{trip.speed.join(' - ')} km/h</CTableDataCell>
-                          <CTableDataCell>{exitTimeFormatted}</CTableDataCell>
+                          <CTableDataCell>
+                            <CCard align="middle">Schedule {index + 1}</CCard>
+                          </CTableDataCell>
+                          <CTableDataCell>
+                            {' '}
+                            <CCard align="middle">{entryTimeFormatted}</CCard>
+                          </CTableDataCell>
+                          <CTableDataCell>
+                            {' '}
+                            <CCard align="middle">{trip.congestion}</CCard>
+                          </CTableDataCell>
+                          <CTableDataCell>
+                            {' '}
+                            <CCard align="middle">{tripTimeFormatted}</CCard>
+                          </CTableDataCell>
+                          <CTableDataCell>
+                            {' '}
+                            <CCard align="middle">{trip.speed.join(' - ')} km/h</CCard>
+                          </CTableDataCell>
+                          <CTableDataCell>
+                            {' '}
+                            <CCard align="middle">{exitTimeFormatted}</CCard>
+                          </CTableDataCell>
                         </CTableRow>
                       )
                     }),

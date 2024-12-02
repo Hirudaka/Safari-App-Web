@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import '../../scss/_custom.scss'
 import ReactDatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
+import { useNavigate } from 'react-router-dom'
 
 import {
   CAvatar,
@@ -31,6 +32,7 @@ const Dashboard = () => {
   const [filteredTrips, setFilteredTrips] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     async function fetchTrips() {
@@ -59,6 +61,10 @@ const Dashboard = () => {
     fetchTrips()
     fetchDrivers()
   }, [])
+
+  const handleViewClick = (tripId) => {
+    navigate(`/trip/${tripId}`)
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -302,7 +308,11 @@ const Dashboard = () => {
                         {formatDateTime2(trip.end_time).time || 'Processing'}
                       </CTableDataCell>
                       <CTableDataCell>
-                        <CButton color="info" variant="outline">
+                        <CButton
+                          color="info"
+                          variant="outline"
+                          onClick={() => handleViewClick(trip._id)}
+                        >
                           👁️
                         </CButton>
                       </CTableDataCell>

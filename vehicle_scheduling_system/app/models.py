@@ -40,12 +40,14 @@ class Driver(Document):
     created_at = DateTimeField(required=True)
     updated_at = DateTimeField(required=True)
 
+
 class Trip(Document):
-    vehicle_id = StringField(required=True, unique=True)
+    driver_id = StringField(required=True)
+    vehicle_id = StringField(required=True)
     entry_time = DateTimeField(required=True)
-    trip_time = IntField(required=True)  # in hours
-    status = StringField(required=True) 
-    congestion = IntField(default=0)
-    speed = FloatField(FloatField())  # Current speed in km/h
-    location = ListField(FloatField())  # [latitude, longitude]
-    
+    trip_time = IntField()
+    congestion = IntField()
+    speed = ListField(FloatField())
+    locations = ListField(FloatField())
+    status = StringField()
+    end_time = DateTimeField()
