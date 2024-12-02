@@ -43,23 +43,51 @@ def get_schedule():
     # Return the optimized schedule as a response
     return jsonify({'schedule': optimized_schedule}), 200
 
-
-@main.route('/end_trip', methods=['POST'])
-def end_trip():
-    data = request.get_json()
-    driver_id = data.get("driver_id")
+@main.route('/end_trip/<trip_id>', methods=['PUT'])
+def end_trip(trip_id):  # Now using trip_id from the URL
+    # Get the current time as the end_time
     end_time = datetime.now()
 
-    trip = current_app.mongo_db['trips'].find_one({"driver_id": driver_id, "status": "ongoing"})
-    if not trip:
-        return jsonify({"error": "No ongoing trip found for this driver"}), 400
+    # Convert the trip_id string to ObjectId
+    try:
+        trip_id_obj = ObjectId(trip_id)
+    except Exception as e:
+        return jsonify({"error": "Invalid ObjectId format"}), 400
 
+    # Find the ongoing trip using the trip_id
+    trip = current_app.mongo_db['trips'].find_one({"_id": trip_id_obj, "status": "ongoing"})
+    
+    if not trip:
+        return jsonify({"error": "No ongoing trip found with this ID"}), 400
+
+    # Update the trip status to completed and set the end_time
     current_app.mongo_db['trips'].update_one(
-        {"_id": trip["_id"]},
+        {"_id": trip_id_obj},
         {"$set": {"status": "completed", "end_time": end_time}}
     )
 
+    # Return success message
     return jsonify({"message": "Trip ended", "end_time": end_time}), 200
+
+
+
+@main.route('/api/optimized_schedule', methods=['GET'])
+def get_optimized_schedule():
+    """
+    Fetch the latest optimized schedule from the database.
+    """
+    # Retrieve the latest optimized schedule from MongoDB
+    optimized_schedule = current_app.mongo_db.optimized_schedule.find_one(sort=[("_id", -1)])  # Get the most recent entry
+
+    if not optimized_schedule:
+        # If no optimized schedule exists
+        return jsonify({'message': 'No optimized schedule found.'}), 404
+
+    # Remove the MongoDB-specific "_id" field for cleaner output
+    optimized_schedule.pop("_id", None)
+    
+    return jsonify({'optimized_schedule': optimized_schedule}), 200
+
 
 
 # @main.route('/start_trip', methods=['POST'])

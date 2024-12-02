@@ -72,6 +72,48 @@ const Dashboard = () => {
     }
   }
 
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString) return { date: 'Processing', time: 'Processing' }
+
+    const date = new Date(dateTimeString)
+
+    // Format the date (YYYY-MM-DD)
+    const formattedDate = date.toLocaleDateString('en-GB') // Local format (DD/MM/YYYY)
+
+    // Local time formatting (browser/system timezone)
+    let hours = date.getHours()
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    const seconds = date.getSeconds().toString().padStart(2, '0')
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+
+    // Convert to 12-hour format for AM/PM
+    hours = hours % 12 || 12 // Adjust for midnight (0 -> 12)
+    const formattedTime = `${hours}:${minutes}:${seconds} ${ampm}`
+
+    return { date: formattedDate, time: formattedTime }
+  }
+
+  const formatDateTime2 = (dateTimeString) => {
+    if (!dateTimeString) return { date: 'Processing', time: 'Processing' }
+
+    const date = new Date(dateTimeString)
+
+    // Format the date (YYYY-MM-DD)
+    const formattedDate = date.toISOString().split('T')[0]
+
+    // Use UTC methods to avoid timezone conversion
+    let hours = date.getUTCHours()
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0')
+    const seconds = date.getUTCSeconds().toString().padStart(2, '0')
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+
+    // Convert hours to 12-hour format
+    hours = hours % 12 || 12 // Adjust 0 to 12 for midnight
+    const formattedTime = `${hours}:${minutes}:${seconds} ${ampm}`
+
+    return { date: formattedDate, time: formattedTime }
+  }
+
   const getDriverName = (driverId) => {
     const driver = drivers.find((d) => String(d.driver_id) === String(driverId))
     return driver ? driver.name : 'Unknown Driver'
@@ -80,26 +122,6 @@ const Dashboard = () => {
   const getDriverAvatar = (driverId) => {
     const driver = drivers.find((d) => String(d.driver_id) === String(driverId))
     return driver && driver.avatar ? driver.avatar : avatarPlaceholder
-  }
-
-  const formatDateTime = (dateTimeString) => {
-    if (!dateTimeString) return { date: 'Processing', time: 'Processing' }
-    const date = new Date(dateTimeString)
-
-    // Format the date (YYYY-MM-DD)
-    const formattedDate = date.toISOString().split('T')[0]
-
-    // Format the time with AM/PM
-    let hours = date.getHours()
-    const minutes = date.getMinutes().toString().padStart(2, '0')
-    const seconds = date.getSeconds().toString().padStart(2, '0')
-    const ampm = hours >= 12 ? 'PM' : 'AM'
-
-    // Convert hours to 12-hour format
-    hours = hours % 12 || 12 // Adjust 0 to 12 for midnight
-    const formattedTime = `${hours}:${minutes}:${seconds} ${ampm}`
-
-    return { date: formattedDate, time: formattedTime }
   }
 
   const groupTripsByHourAndStatus = (trips) => {
@@ -115,6 +137,7 @@ const Dashboard = () => {
     trips.forEach((trip) => {
       if (trip.entry_time) {
         const hour = new Date(trip.entry_time).getHours()
+
         if (trip.status === 'ongoing') {
           grouped.ongoing[hour].y++
         } else if (trip.status === 'completed') {
@@ -276,7 +299,7 @@ const Dashboard = () => {
                         {formatDateTime(trip.entry_time).time || 'Processing'}
                       </CTableDataCell>
                       <CTableDataCell>
-                        {formatDateTime(trip.end_time).time || 'Processing'}
+                        {formatDateTime2(trip.end_time).time || 'Processing'}
                       </CTableDataCell>
                       <CTableDataCell>
                         <CButton color="info" variant="outline">

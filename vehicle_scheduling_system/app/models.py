@@ -48,3 +48,4 @@ class Trip(Document):
     congestion = IntField(default=0)
     speed = FloatField(FloatField())  # Current speed in km/h
     location = ListField(FloatField())  # [latitude, longitude]
+    
