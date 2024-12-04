@@ -8,7 +8,7 @@ from io import BytesIO
 from base64 import b64encode
 from app.models import Driver
 from app.models import Trip
-from .genetic_algorithm import get_vehicle_data_from_db, run_genetic_algorithm
+from .genetic_algorithm import get_vehicle_data_from_db, fetch_and_schedule_for_next_10_drivers
 from datetime import datetime
 from bson import ObjectId
 
@@ -37,7 +37,8 @@ def get_schedule():
     schedule, _ = get_vehicle_data_from_db(current_app.mongo_db)  # Fetch from MongoDB
 
     # Run the genetic algorithm and pass the fetched schedule
-    optimized_schedule = run_genetic_algorithm(schedule)  # Pass the fetched schedule to the algorithm
+    optimized_schedule = fetch_and_schedule_for_next_10_drivers() # Pass the fetched schedule to the algorithm
+    print("hi",optimized_schedule)
     
     # Save the optimized schedule to MongoDB
     current_app.mongo_db.optimized_schedule.insert_one({"schedule": optimized_schedule})

@@ -21,27 +21,27 @@ const formatTime = (decimalHours) => {
   const minutes = totalMinutes % 60
 
   const period = hours >= 12 ? 'PM' : 'AM'
-  const formattedHours = hours % 12 || 12 // Convert to 12-hour format
-  const formattedMinutes = minutes.toString().padStart(2, '0') // Ensure two-digit minutes
+  const formattedHours = hours % 12 || 12
+  const formattedMinutes = minutes.toString().padStart(2, '0')
 
   return `${formattedHours}:${formattedMinutes} ${period}`
 }
 
 const Schedules = () => {
-  const [schedules, setSchedules] = useState([]) // State to store schedule data
-  const [loading, setLoading] = useState(true) // Loading state
+  const [schedules, setSchedules] = useState([])
+  const [loading, setLoading] = useState(true)
 
   // Fetch optimized schedule from API
   const fetchSchedules = async () => {
-    setLoading(true) // Set loading to true while fetching data
+    setLoading(true)
     try {
-      const response = await fetch('http://127.0.0.1:5001/api/optimized_schedule') // API endpoint
+      const response = await fetch('http://127.0.0.1:5001/api/optimized_schedule')
       const data = await response.json()
-      setSchedules(data.optimized_schedule.schedule) // Set fetched schedules
+      setSchedules(data.optimized_schedule.schedule)
     } catch (error) {
       console.error('Error fetching schedules:', error)
     } finally {
-      setLoading(false) // Set loading to false after data is fetched
+      setLoading(false)
     }
   }
 
@@ -49,23 +49,22 @@ const Schedules = () => {
     fetchSchedules()
   }, [])
 
+  const flattenedSchedules = schedules.flat().slice(0, 10)
+
   // Generate schedules and refresh the table
   const generateSchedules = async () => {
-    setLoading(true) // Set loading while generating schedules
+    setLoading(true)
     try {
-      const response = await fetch('http://127.0.0.1:5001/api/schedule', { method: 'GET' }) // GET request to generate schedules
+      const response = await fetch('http://127.0.0.1:5001/api/schedule', { method: 'GET' })
       if (response.ok) {
-        await fetchSchedules() // Refresh the schedules after generating
+        await fetchSchedules()
       }
     } catch (error) {
       console.error('Error generating schedules:', error)
     } finally {
-      setLoading(false) // Ensure loading is stopped
+      setLoading(false)
     }
   }
-
-  // Calculate total schedules
-  const totalSchedules = schedules.reduce((count, group) => count + group.length, 0)
 
   return (
     <CRow>
@@ -77,7 +76,7 @@ const Schedules = () => {
               Generate Schedules
             </CButton>
             <div className="mt-2">
-              <strong>Total Schedules: {totalSchedules}</strong>
+              <strong>Total Schedules: {flattenedSchedules.length}</strong>
             </div>
           </CCardHeader>
           <CCardBody>
@@ -96,45 +95,40 @@ const Schedules = () => {
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {schedules.map((scheduleGroup, groupIndex) =>
-                    scheduleGroup.map((trip, index) => {
-                      const entryTimeFormatted = formatTime(trip.entry_time)
-                      const tripTimeFormatted = `${Math.floor(trip.trip_time)}h ${Math.round((trip.trip_time % 1) * 60)}m` // Keep trip time in hours and minutes
-                      const exitTimeFormatted = formatTime(trip.entry_time + trip.trip_time)
+                  {flattenedSchedules.map((trip, index) => {
+                    const entryTimeFormatted = formatTime(trip.entry_time)
+                    const tripTimeFormatted = `${Math.floor(trip.trip_time)}h ${Math.round(
+                      (trip.trip_time % 1) * 60,
+                    )}m`
+                    const exitTimeFormatted = formatTime(trip.entry_time + trip.trip_time)
 
-                      return (
-                        <CTableRow
-                          key={`${groupIndex}-${index}`}
-                          className="pop-in-row"
-                          style={{ animationDelay: `${0.1 * index}s` }} // Stagger animation delay for each row
-                        >
-                          <CTableDataCell>
-                            <CCard align="middle">Schedule {index + 1}</CCard>
-                          </CTableDataCell>
-                          <CTableDataCell>
-                            {' '}
-                            <CCard align="middle">{entryTimeFormatted}</CCard>
-                          </CTableDataCell>
-                          <CTableDataCell>
-                            {' '}
-                            <CCard align="middle">{trip.congestion}</CCard>
-                          </CTableDataCell>
-                          <CTableDataCell>
-                            {' '}
-                            <CCard align="middle">{tripTimeFormatted}</CCard>
-                          </CTableDataCell>
-                          <CTableDataCell>
-                            {' '}
-                            <CCard align="middle">{trip.speed.join(' - ')} km/h</CCard>
-                          </CTableDataCell>
-                          <CTableDataCell>
-                            {' '}
-                            <CCard align="middle">{exitTimeFormatted}</CCard>
-                          </CTableDataCell>
-                        </CTableRow>
-                      )
-                    }),
-                  )}
+                    return (
+                      <CTableRow
+                        key={index}
+                        className="pop-in-row"
+                        style={{ animationDelay: `${0.1 * index}s` }}
+                      >
+                        <CTableDataCell>
+                          <CCard align="middle">Schedule {index + 1}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{entryTimeFormatted}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{trip.congestion}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{tripTimeFormatted}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{trip.speed.join(' - ')} km/h</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{exitTimeFormatted}</CCard>
+                        </CTableDataCell>
+                      </CTableRow>
+                    )
+                  })}
                 </CTableBody>
               </CTable>
             )}
