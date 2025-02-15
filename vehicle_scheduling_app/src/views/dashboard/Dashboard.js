@@ -40,7 +40,7 @@ const Dashboard = () => {
         const response = await fetch('http://127.0.0.1:5001/api/trips')
         const data = await response.json()
         setTrips(data.trips)
-        setFilteredTrips(data.trips) // Set initial state with all trips
+        setFilteredTrips(data.trips)
       } catch (error) {
         console.error('Error fetching trips:', error)
       } finally {
@@ -84,7 +84,7 @@ const Dashboard = () => {
     const date = new Date(dateTimeString)
 
     // Format the date (YYYY-MM-DD)
-    const formattedDate = date.toLocaleDateString('en-GB') // Local format (DD/MM/YYYY)
+    const formattedDate = date.toLocaleDateString('en-GB')
 
     // Local time formatting (browser/system timezone)
     let hours = date.getHours()
@@ -92,8 +92,7 @@ const Dashboard = () => {
     const seconds = date.getSeconds().toString().padStart(2, '0')
     const ampm = hours >= 12 ? 'PM' : 'AM'
 
-    // Convert to 12-hour format for AM/PM
-    hours = hours % 12 || 12 // Adjust for midnight (0 -> 12)
+    hours = hours % 12 || 12
     const formattedTime = `${hours}:${minutes}:${seconds} ${ampm}`
 
     return { date: formattedDate, time: formattedTime }
@@ -114,7 +113,7 @@ const Dashboard = () => {
     const ampm = hours >= 12 ? 'PM' : 'AM'
 
     // Convert hours to 12-hour format
-    hours = hours % 12 || 12 // Adjust 0 to 12 for midnight
+    hours = hours % 12 || 12
     const formattedTime = `${hours}:${minutes}:${seconds} ${ampm}`
 
     return { date: formattedDate, time: formattedTime }
@@ -178,10 +177,10 @@ const Dashboard = () => {
         return tripLocalDate === selectedDate
       })
 
-      console.log('Filtered Trips:', filtered) // Debug filtered trips
+      console.log('Filtered Trips:', filtered)
       setFilteredTrips(filtered)
     } else {
-      setFilteredTrips(trips) // Reset to all trips if no date is selected
+      setFilteredTrips(trips)
     }
   }
 

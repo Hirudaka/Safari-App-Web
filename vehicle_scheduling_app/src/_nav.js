@@ -51,7 +51,7 @@ const _nav = [
       {
         component: CNavItem,
         name: 'Register',
-        to: '/register',
+        to: '/registerDriver',
       },
       {
         component: CNavItem,

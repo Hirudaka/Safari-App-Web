@@ -65,7 +65,7 @@ const Trip = () => {
   // Function to get the last location
   const getLastLocation = () => {
     if (trip && trip.locations && trip.locations.length > 0) {
-      return trip.locations[trip.locations.length - 1] // Return the last location
+      return trip.locations[trip.locations.length - 1]
     }
     return null
   }
@@ -91,13 +91,13 @@ const Trip = () => {
     L.Routing.control({
       waypoints: waypoints,
       routeWhileDragging: true,
-      createMarker: () => null, // Disable marker creation at waypoints
+      createMarker: () => null,
       lineOptions: {
         styles: [
           {
-            color: 'red', // Set the route color to red
-            weight: 5, // Set the line thickness
-            opacity: 0.7, // Set the line opacity
+            color: 'red',
+            weight: 5,
+            opacity: 0.7,
           },
         ],
       },
@@ -106,8 +106,8 @@ const Trip = () => {
 
   const formatEntryTime = (entryTime) => {
     const date = new Date(entryTime)
-    const formattedDate = date.toLocaleDateString() // e.g., "12/2/2024"
-    const formattedTime = date.toLocaleTimeString() // e.g., "12:40:32 PM"
+    const formattedDate = date.toLocaleDateString()
+    const formattedTime = date.toLocaleTimeString()
     return { formattedDate, formattedTime }
   }
 
@@ -191,8 +191,8 @@ const Trip = () => {
                         <CircleMarker
                           key={index}
                           center={[location[0], location[1]]}
-                          radius={3} // Size of the dot
-                          color={isLastLocation ? 'green' : 'blue'} // Green for the last location
+                          radius={3}
+                          color={isLastLocation ? 'green' : 'blue'}
                           fillOpacity={1}
                         />
                       )
@@ -200,9 +200,9 @@ const Trip = () => {
                     {/* Display the path by joining the locations with a polyline */}
                     <Polyline
                       positions={trip.locations.map((location) => [location[0], location[1]])}
-                      color="red" // Set the path color to red
-                      weight={5} // Set line thickness
-                      opacity={0.7} // Set line opacity
+                      color="red"
+                      weight={5}
+                      opacity={0.7}
                     />
                   </MapContainer>
                 ) : (

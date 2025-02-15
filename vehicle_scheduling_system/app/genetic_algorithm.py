@@ -6,7 +6,7 @@ from app.config import db
 # Configuration
 num_vehicles = 20
 generations = 500
-mutation_rate = 0.01
+mutation_rate = 0.01 
 max_vehicles_in_safari = 100 
 
 

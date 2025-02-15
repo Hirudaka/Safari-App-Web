@@ -8,7 +8,7 @@ from io import BytesIO
 from base64 import b64encode
 from app.models import Driver
 from app.models import Trip
-from .genetic_algorithm import get_vehicle_data_from_db, fetch_and_schedule_for_next_10_drivers
+from .genetic_algorithm import get_vehicle_data_from_db,fetch_and_schedule_for_next_10_drivers
 from datetime import datetime
 from bson import ObjectId
 
@@ -34,30 +34,26 @@ main = Blueprint('main', __name__)
 @main.route('/api/schedule', methods=['GET'])
 def get_schedule():
     # Fetch vehicle data (schedule) from the database
-    schedule, _ = get_vehicle_data_from_db(current_app.mongo_db)  # Fetch from MongoDB
+    schedule, _ = get_vehicle_data_from_db(current_app.mongo_db)  
 
-    # Run the genetic algorithm and pass the fetched schedule
-    optimized_schedule = fetch_and_schedule_for_next_10_drivers() # Pass the fetched schedule to the algorithm
+    optimized_schedule = fetch_and_schedule_for_next_10_drivers() 
     print("hi",optimized_schedule)
     
-    # Save the optimized schedule to MongoDB
     current_app.mongo_db.optimized_schedule.insert_one({"schedule": optimized_schedule})
-    
-    # Return the optimized schedule as a response
+   
     return jsonify({'schedule': optimized_schedule}), 200
 
 @main.route('/end_trip/<trip_id>', methods=['PUT'])
-def end_trip(trip_id):  # Now using trip_id from the URL
-    # Get the current time as the end_time
+def end_trip(trip_id):  
+
     end_time = datetime.now()
 
-    # Convert the trip_id string to ObjectId
+
     try:
         trip_id_obj = ObjectId(trip_id)
     except Exception as e:
         return jsonify({"error": "Invalid ObjectId format"}), 400
 
-    # Find the ongoing trip using the trip_id
     trip = current_app.mongo_db['trips'].find_one({"_id": trip_id_obj, "status": "ongoing"})
     
     if not trip:
@@ -69,7 +65,7 @@ def end_trip(trip_id):  # Now using trip_id from the URL
         {"$set": {"status": "completed", "end_time": end_time}}
     )
 
-    # Return success message
+    
     return jsonify({"message": "Trip ended", "end_time": end_time}), 200
 
 
@@ -80,7 +76,7 @@ def get_optimized_schedule():
     Fetch the latest optimized schedule from the database.
     """
     # Retrieve the latest optimized schedule from MongoDB
-    optimized_schedule = current_app.mongo_db.optimized_schedule.find_one(sort=[("_id", -1)])  # Get the most recent entry
+    optimized_schedule = current_app.mongo_db.optimized_schedule.find_one(sort=[("_id", -1)])  
 
     if not optimized_schedule:
         # If no optimized schedule exists
@@ -126,24 +122,23 @@ def get_optimized_schedule():
 def start_trip():
     data = request.get_json()
 
-    # Validate required fields
+   
     driver_id = data.get("driver_id")
     vehicle_id = data.get("vehicle_id")
     if not driver_id or not vehicle_id:
         return jsonify({"error": "Driver ID and Vehicle ID are required"}), 400
 
-    # Default values
-    entry_time = datetime.now()  # Current time when the trip starts
-    trip_time = data.get("trip_time", 1)  # Default to 1 hour if not provided
-    congestion = data.get("congestion", 0)  # Default to 0
-    speed = data.get("speed", [])  # Default to an empty list for speeds
-    locations = data.get("locations", [])  # Default to an empty list for locations
+   
+    entry_time = datetime.now() 
+    trip_time = data.get("trip_time", 1)
+    congestion = data.get("congestion", 0) 
+    speed = data.get("speed", []) 
+    locations = data.get("locations", []) 
 
-    # Validate locations (each entry should be a pair of latitude and longitude)
     if not all(isinstance(loc, list) and len(loc) == 2 for loc in locations):
         return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
 
-    # Insert trip details into the MongoDB collection
+    
     trip_data = {
         "driver_id": driver_id,
         "vehicle_id": vehicle_id,
@@ -152,14 +147,14 @@ def start_trip():
         "congestion": congestion,
         "speed": speed,
         "locations": locations,
-        "status": "ongoing"  # Set status to 'ongoing' when trip starts
+        "status": "ongoing"  
     }
 
-    # Save to the database
+   
     db = current_app.mongo_db['trips']
     inserted_trip = db.insert_one(trip_data)
 
-    # Add the inserted document ID (convert ObjectId to string for JSON compatibility)
+   
     trip_data["_id"] = str(inserted_trip.inserted_id)
 
     return jsonify({
@@ -172,11 +167,11 @@ def append_locations(trip_id):
     data = request.get_json()
     new_locations = data.get("locations", [])
 
-    # Validate new locations
+   
     if not all(isinstance(loc, list) and len(loc) == 2 for loc in new_locations):
         return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
 
-    # Convert trip_id string to ObjectId
+   
     try:
         trip_id_obj = ObjectId(trip_id)
     except Exception as e:
@@ -191,13 +186,77 @@ def append_locations(trip_id):
     current_locations = trip.get("locations", [])
     updated_locations = current_locations + new_locations
 
-    # Update the trip in the database
+   
     current_app.mongo_db['trips'].update_one(
         {"_id": trip_id_obj},
         {"$set": {"locations": updated_locations}}
     )
 
     return jsonify({"message": "Locations added successfully", "updated_locations": updated_locations}), 200
+
+@main.route('/api/trips/<trip_id>/updateStatus', methods=['PUT'])
+def update_trip_status(trip_id):
+    data = request.get_json()
+    new_locations = data.get("locations", [])
+    new_speed = data.get("speed", [])
+    new_trip_time = data.get("trip_time", 0) 
+
+    # Validate new locations
+    if not all(isinstance(loc, list) and len(loc) == 2 for loc in new_locations):
+        return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
+
+    # Validate new speed array
+    if not all(isinstance(s, (int, float)) for s in new_speed):
+        return jsonify({"error": "Speed must be a list of numbers"}), 400
+
+    # Validate new trip time
+    if not isinstance(new_trip_time, (int, float)) or new_trip_time < 0:
+        return jsonify({"error": "Trip time must be a positive number"}), 400
+
+    # Convert trip_id string to ObjectId
+    try:
+        trip_id_obj = ObjectId(trip_id)
+    except Exception as e:
+        return jsonify({"error": "Invalid ObjectId format"}), 400
+
+    # Find the trip
+    trip = current_app.mongo_db['trips'].find_one({"_id": trip_id_obj})
+    if not trip:
+        return jsonify({"error": "Trip not found"}), 404
+
+    # Append new locations and speed to the existing ones
+    current_locations = trip.get("locations", [])
+    current_speed = trip.get("speed", [])
+    current_trip_time = trip.get("trip_time", 0)
+
+    updated_locations = current_locations + new_locations
+    updated_speed = current_speed + new_speed
+    updated_trip_time = current_trip_time + new_trip_time
+
+    # Check the last speed to determine the status
+    last_speed = updated_speed[-1] if updated_speed else None
+    new_status = "idle" if last_speed == 0 else "ongoing"
+
+    # Update the trip in the database
+    current_app.mongo_db['trips'].update_one(
+        {"_id": trip_id_obj},
+        {
+            "$set": {
+                "locations": updated_locations,
+                "speed": updated_speed,
+                "trip_time": updated_trip_time,
+                "status": new_status
+            }
+        }
+    )
+
+    return jsonify({
+        "message": "Trip updated successfully",
+        "updated_locations": updated_locations,
+        "updated_speed": updated_speed,
+        "updated_trip_time": updated_trip_time,
+        "new_status": new_status
+    }), 200
 
 
 @main.route('/api/trips', methods=['GET'])
@@ -224,7 +283,7 @@ def get_trips():
     # Convert ObjectId to string for JSON serialization
     for trip in trips:
         trip["_id"] = str(trip["_id"])
-        trip["entry_time"] = trip["entry_time"].isoformat()  # Convert datetime to ISO format
+        trip["entry_time"] = trip["entry_time"].isoformat()  
 
     return jsonify({
         "message": "Trips fetched successfully.",
@@ -254,7 +313,7 @@ def register_driver():
             phone=data["phone"],
             vehicle_id=data["vehicle_id"], 
             qr_code=qr_code,
-            qr_code_image=img_byte_arr,  # Save the QR code image (Base64 encoded)
+            qr_code_image=img_byte_arr,  
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
@@ -264,7 +323,7 @@ def register_driver():
             "message": "Driver registered successfully!",
             "driver_id": driver_id,
             "qr_code": qr_code,
-            "qr_code_image": img_byte_arr  # Send Base64-encoded image in response
+            "qr_code_image": img_byte_arr  
         }), 201
 
     except Exception as e:
@@ -274,7 +333,7 @@ def register_driver():
     
 @main.route('/get_drivers', methods=['GET'])
 def get_drivers():
-    drivers = Driver.objects.all()  # Fetch all drivers from the database
+    drivers = Driver.objects.all() 
     drivers_list = []
 
     for driver in drivers:
@@ -285,7 +344,7 @@ def get_drivers():
             "phone": driver.phone,
             "vehicle_id": driver.vehicle_id,
             "qr_code": driver.qr_code,
-            "qr_code_image": driver.qr_code_image,  # This can be a base64 or URL depending on your setup
+            "qr_code_image": driver.qr_code_image, 
         })
     
     return jsonify({"drivers": drivers_list}), 200
@@ -294,26 +353,26 @@ def get_drivers():
 
 @main.route('/get_qr_code/<driver_id>', methods=['GET'])
 def get_qr_code(driver_id):
-    # Retrieve driver information from the database
+    
     driver = Driver.objects(driver_id=driver_id).first()
 
     if not driver:
         return jsonify({"error": "Driver not found"}), 404
 
-    # Retrieve the Base64-encoded QR code image
+  
     qr_code_image = driver.qr_code_image
 
-    # Return the image as part of the response
+    
     return jsonify({
         "driver_id": driver.driver_id,
-        "qr_code_image": qr_code_image  # Send the Base64 image
+        "qr_code_image": qr_code_image 
     }), 200
 
 
 @main.route('/api/trips/<trip_id>', methods=['GET'])
 def get_trip_by_id(trip_id):
     try:
-        # Convert string to ObjectId
+        
         trip_id_obj = ObjectId(trip_id)
         print(f"Looking for trip with ID: {trip_id_obj}")  # Debug log
         
@@ -322,19 +381,19 @@ def get_trip_by_id(trip_id):
         trip = db.find_one({"_id": trip_id_obj})
         
         if trip:
-            # Convert ObjectId and datetime fields to string for JSON serialization
+            
             trip["_id"] = str(trip["_id"])
             if "entry_time" in trip:
                 trip["entry_time"] = trip["entry_time"].isoformat()
             if "end_time" in trip:
                 trip["end_time"] = trip["end_time"].isoformat()
 
-            print(f"Found trip: {trip}")  # Debug log
+            print(f"Found trip: {trip}") 
             return jsonify(trip), 200
         else:
-            print("Trip not found")  # Debug log
+            print("Trip not found") 
             return jsonify({'error': 'Trip not found'}), 404
 
     except Exception as e:
-        print(f"Error occurred: {str(e)}")  # Debug log
+        print(f"Error occurred: {str(e)}")  
         return jsonify({'error': str(e)}), 500
