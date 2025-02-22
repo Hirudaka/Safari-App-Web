@@ -9,6 +9,7 @@ from base64 import b64encode
 from app.models import Driver
 from app.models import Trip
 from .genetic_algorithm import get_vehicle_data_from_db,fetch_and_schedule_for_next_10_drivers
+from app.algorithmHandler import run_all_algorithms,compare_results
 from datetime import datetime
 from bson import ObjectId
 
@@ -38,6 +39,14 @@ def get_schedule():
 
     optimized_schedule = fetch_and_schedule_for_next_10_drivers() 
     print("hi",optimized_schedule)
+
+    # results = run_all_algorithms(schedule)
+    # best_result = compare_results(results)
+
+    # print("\n")
+    # print("Compared results")
+    # print("\n")  # Corrected newline
+    # (best_result)
     
     current_app.mongo_db.optimized_schedule.insert_one({"schedule": optimized_schedule})
    
