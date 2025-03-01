@@ -360,21 +360,22 @@ def get_drivers():
 
 
 
-@main.route('/get_qr_code/<driver_id>', methods=['GET'])
-def get_qr_code(driver_id):
+@main.route('/get_driver/<driver_id>', methods=['GET'])
+def get_driver_details(driver_id):
     
     driver = Driver.objects(driver_id=driver_id).first()
 
     if not driver:
         return jsonify({"error": "Driver not found"}), 404
-
-  
-    qr_code_image = driver.qr_code_image
-
     
     return jsonify({
         "driver_id": driver.driver_id,
-        "qr_code_image": qr_code_image 
+            "name": driver.name,
+            "email": driver.email,
+            "phone": driver.phone,
+            "vehicle_id": driver.vehicle_id,
+            "qr_code": driver.qr_code,
+            "qr_code_image": driver.qr_code_image, 
     }), 200
 
 

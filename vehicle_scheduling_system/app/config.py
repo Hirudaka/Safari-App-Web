@@ -2,16 +2,18 @@
 from pymongo import MongoClient
 
 # MongoDB connection using MongoDB Atlas URI
-client = MongoClient("mongodb+srv://researchtestdb1:testUser123@cluster0.lvsx7.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
-db = client["vehicle_scheduling_db"]  # Specify the database name
+client = MongoClient(
+            "mongodb+srv://intothejungle:Kjhgfdsa08#@intothejungle.vfm0u.mongodb.net/?retryWrites=true&w=majority&appName=IntoTheJungle"
+)
+db = client["IntothejungleDB"] # Specify the database name
 
 from mongoengine import connect
 
 # MongoDB connection (for local or MongoDB Atlas)
 connect(
-    db="vehicle_scheduling_db",  # Database name
+    db="IntothejungleDB",  # Database name
    
-    host="mongodb+srv://researchtestdb1:testUser123@cluster0.lvsx7.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",  # Replace with your MongoDB URI
+    host="mongodb+srv://intothejungle:Kjhgfdsa08#@intothejungle.vfm0u.mongodb.net/?retryWrites=true&w=majority&appName=IntoTheJungle",  # Replace with your MongoDB URI
   
 )
 
