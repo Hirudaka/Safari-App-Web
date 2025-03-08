@@ -9,7 +9,9 @@ from base64 import b64encode
 from app.models import Driver
 from app.models import Trip
 from .genetic_algorithm import get_vehicle_data_from_db,fetch_and_schedule_for_next_10_drivers
+from app.hybrid import fetch_and_schedule_for_next_10_drivers_hybrid
 from app.algorithmHandler import run_all_algorithms,compare_results
+from app.genetic_algorithm import run_genetic_algorithm
 from datetime import datetime
 from bson import ObjectId
 
@@ -37,8 +39,15 @@ def get_schedule():
     # Fetch vehicle data (schedule) from the database
     schedule, _ = get_vehicle_data_from_db(current_app.mongo_db)  
 
-    optimized_schedule = fetch_and_schedule_for_next_10_drivers() 
-    print("hi",optimized_schedule)
+    optimized_schedule = run_genetic_algorithm(schedule)  # Pass the fetched schedule to the algorithm
+    optimized_schedule = fetch_and_schedule_for_next_10_drivers()
+    hybrid_schedule = fetch_and_schedule_for_next_10_drivers_hybrid()
+
+    print("hi",hybrid_schedule)
+    # Add a `booked` field to each schedule item
+    for item in hybrid_schedule:
+        item["booked"] = False
+        item["diverId"]=None
 
     # results = run_all_algorithms(schedule)
     # best_result = compare_results(results)
@@ -48,9 +57,9 @@ def get_schedule():
     # print("\n")  # Corrected newline
     # (best_result)
     
-    current_app.mongo_db.optimized_schedule.insert_one({"schedule": optimized_schedule})
+    current_app.mongo_db.optimized_schedule.insert_one({"schedule": hybrid_schedule})
    
-    return jsonify({'schedule': optimized_schedule}), 200
+    return jsonify({'schedule': hybrid_schedule}), 200
 
 @main.route('/end_trip/<trip_id>', methods=['PUT'])
 def end_trip(trip_id):  
@@ -407,3 +416,42 @@ def get_trip_by_id(trip_id):
     except Exception as e:
         print(f"Error occurred: {str(e)}")  
         return jsonify({'error': str(e)}), 500
+    
+@main.route('/api/book_schedule', methods=['POST'])
+def book_schedule():
+    data = request.get_json()
+    schedule_id = data.get("schedule_id")  # Unique ID of the schedule to be booked
+    driver_id = data.get("driver_id") 
+
+    if not schedule_id:
+        return jsonify({"error": "Schedule ID is required"}), 400
+
+    try:
+        # Convert schedule_id to ObjectId if necessary
+        schedule_id_obj = ObjectId(schedule_id)
+    except Exception as e:
+        return jsonify({"error": "Invalid Schedule ID format"}), 400
+
+    # Find the schedule in the database
+    db = current_app.mongo_db['optimized_schedule']
+    schedule = db.find_one({"_id": schedule_id_obj})
+
+    if not schedule:
+        return jsonify({"error": "Schedule not found"}), 404
+
+    # Check if the schedule is already booked
+    if schedule.get("booked", False):
+        return jsonify({"error": "Schedule is already booked"}), 400
+
+    # Update the schedule to mark it as booked
+    db.update_one(
+        {"_id": schedule_id_obj},
+        {
+            "$set": {
+                "booked": True,
+                "driverId": driver_id  
+            }
+        }
+    )
+
+    return jsonify({"message": "Schedule booked successfully"}), 200
