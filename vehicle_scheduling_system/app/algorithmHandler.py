@@ -34,6 +34,8 @@ def run_all_algorithms(schedule):
     # Run Hybrid Algorithm
     hybrid_schedule = fetch_and_schedule_for_next_10_drivers_hybrid()
     hybrid_fitness = fitness(hybrid_schedule)
+    mo_schedule = run_multi_objective_optimization(schedule)
+
 
     # Store results
     results = {
@@ -41,8 +43,10 @@ def run_all_algorithms(schedule):
         "SA": {"schedule": sa_schedule, "fitness": sa_fitness},
         "PSO": {"schedule": pso_schedule, "fitness": pso_fitness},
         "Hybrid": {"schedule": hybrid_schedule, "fitness": hybrid_fitness},
+        "MO": {"schedule": mo_schedule, "fitness": fitness(mo_schedule)},
     }
 
+    print("results","\n",results)
     return results
 
 def compare_results(results):
@@ -117,3 +121,26 @@ def fitness(schedule, generation=0):
         + weights["speed"] * speed_penalty
         + penalty_violations
     )
+
+from pymoo.core.problem import Problem
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.optimize import minimize
+import numpy as np
+
+class SafariSchedulingProblem(Problem):
+    def __init__(self, schedule):
+        super().__init__(n_var=len(schedule), n_obj=3, n_constr=0)
+        self.schedule = schedule
+
+    def _evaluate(self, X, out, *args, **kwargs):
+        F = []
+        for x in X:
+            fitness = fitness(x)
+            F.append([fitness["time"], fitness["congestion"], fitness["violations"]])
+        out["F"] = np.array(F)
+
+def run_multi_objective_optimization(schedule):
+    problem = SafariSchedulingProblem(schedule)
+    algorithm = NSGA2(pop_size=100)
+    res = minimize(problem, algorithm, ('n_gen', 200), verbose=True)
+    return res.X

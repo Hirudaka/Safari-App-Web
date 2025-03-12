@@ -1,6 +1,17 @@
 import random
 from app.config import db
 from app.simulated_annealing import simulated_annealing
+import numpy as np
+
+def calculate_diversity(population):
+    entry_times = [vehicle["entry_time"] for schedule in population for vehicle in schedule]
+    return np.std(entry_times)
+
+def adaptive_mutation_rate(generation, diversity):
+    base_rate = 0.01
+    if diversity < 0.1:  # Threshold for low diversity
+        return min(0.1, base_rate * (1 + generation / generations))
+    return base_rate
 
 generations = 500
 
@@ -106,13 +117,12 @@ def mutate(schedule, mutation_rate):
     return schedule
 
 def run_hybrid_algorithm(schedule):
-    # Step 1: Run Genetic Algorithm to generate a diverse population
-    generation=0
-    mutation_rate = max(0.01, 0.1 * (1 - generation / generations))
     population = initialize_population(schedule)
     population = sorted(population, key=lambda ind: fitness(ind))
 
     for generation in range(generations):
+        diversity = calculate_diversity(population)
+        mutation_rate = adaptive_mutation_rate(generation, diversity)
         selected = selection(population)
         offspring = []
 
@@ -124,10 +134,9 @@ def run_hybrid_algorithm(schedule):
         population = sorted(offspring, key=fitness)
         population = remove_duplicates(population)
 
-    # Step 2: Run Simulated Annealing on the best solution from GA
     best_solution_ga = population[0]
-    best_solution_hybrid = simulated_annealing(best_solution_ga) # type: ignore
-
+    best_solution_hybrid = simulated_annealing(best_solution_ga)
+    print(f"Best solution from GA: {best_solution_ga}")
     return best_solution_hybrid
 
 def get_vehicle_data_from_db(db):
@@ -160,6 +169,7 @@ def generate_random_trips(num_trips):
 # Main function to run the hybrid algorithm
 def fetch_and_schedule_for_next_10_drivers_hybrid():
     db_schedule, _ = get_vehicle_data_from_db(db)
+    #random trips
     simulated_trips = generate_random_trips(10)
     schedule = db_schedule + simulated_trips
 

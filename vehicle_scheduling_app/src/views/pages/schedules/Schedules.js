@@ -31,13 +31,17 @@ const Schedules = () => {
   const [schedules, setSchedules] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch optimized schedule from API
+  // Fetch optimized schedules from API
   const fetchSchedules = async () => {
     setLoading(true)
     try {
       const response = await fetch('http://127.0.0.1:5001/api/optimized_schedule')
       const data = await response.json()
-      setSchedules(data.optimized_schedule.schedule)
+      if (data.optimized_schedule && Array.isArray(data.optimized_schedule)) {
+        setSchedules(data.optimized_schedule)
+      } else {
+        setSchedules([])
+      }
     } catch (error) {
       console.error('Error fetching schedules:', error)
     } finally {
@@ -48,8 +52,6 @@ const Schedules = () => {
   useEffect(() => {
     fetchSchedules()
   }, [])
-
-  const flattenedSchedules = schedules.flat().slice(0, 10)
 
   // Generate schedules and refresh the table
   const generateSchedules = async () => {
@@ -71,31 +73,34 @@ const Schedules = () => {
       <CCol lg={12} md={10} sm={12} className="mx-auto">
         <CCard className="mb-4">
           <CCardHeader>
-            Trip Schedules
+            <strong>Trip Schedules</strong>
             <CButton color="primary" className="ms-3" onClick={generateSchedules}>
               Generate Schedules
             </CButton>
             <div className="mt-2">
-              <strong>Total Schedules: {flattenedSchedules.length}</strong>
+              <strong>Total Schedules: {schedules.length}</strong>
             </div>
           </CCardHeader>
           <CCardBody>
             {loading ? (
               <div>Loading...</div>
+            ) : schedules.length === 0 ? (
+              <div>No schedules available.</div>
             ) : (
               <CTable align="middle" className="mb-0 border" hover responsive>
                 <CTableHead>
                   <CTableRow>
-                    <CTableHeaderCell>Schedule</CTableHeaderCell>
+                    <CTableHeaderCell>#</CTableHeaderCell>
                     <CTableHeaderCell>Entry Time</CTableHeaderCell>
                     <CTableHeaderCell>Traffic Level</CTableHeaderCell>
                     <CTableHeaderCell>Trip Time</CTableHeaderCell>
                     <CTableHeaderCell>Speed (km/h)</CTableHeaderCell>
                     <CTableHeaderCell>Estimated Exit Time</CTableHeaderCell>
+                    <CTableHeaderCell>Booked Driver</CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {flattenedSchedules.map((trip, index) => {
+                  {schedules.map((trip, index) => {
                     const entryTimeFormatted = formatTime(trip.entry_time)
                     const tripTimeFormatted = `${Math.floor(trip.trip_time)}h ${Math.round(
                       (trip.trip_time % 1) * 60,
@@ -103,29 +108,14 @@ const Schedules = () => {
                     const exitTimeFormatted = formatTime(trip.entry_time + trip.trip_time)
 
                     return (
-                      <CTableRow
-                        key={index}
-                        className="pop-in-row"
-                        style={{ animationDelay: `${0.1 * index}s` }}
-                      >
-                        <CTableDataCell>
-                          <CCard align="middle">Schedule {index + 1}</CCard>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                          <CCard align="middle">{entryTimeFormatted}</CCard>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                          <CCard align="middle">{trip.congestion}</CCard>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                          <CCard align="middle">{tripTimeFormatted}</CCard>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                          <CCard align="middle">{trip.speed.join(' - ')} km/h</CCard>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                          <CCard align="middle">{exitTimeFormatted}</CCard>
-                        </CTableDataCell>
+                      <CTableRow key={index}>
+                        <CTableDataCell>{index + 1}</CTableDataCell>
+                        <CTableDataCell>{entryTimeFormatted}</CTableDataCell>
+                        <CTableDataCell>{trip.congestion}</CTableDataCell>
+                        <CTableDataCell>{tripTimeFormatted}</CTableDataCell>
+                        <CTableDataCell>{trip.speed.join(' - ')} km/h</CTableDataCell>
+                        <CTableDataCell>{exitTimeFormatted}</CTableDataCell>
+                        <CTableDataCell>{trip.driverName}</CTableDataCell>
                       </CTableRow>
                     )
                   })}
