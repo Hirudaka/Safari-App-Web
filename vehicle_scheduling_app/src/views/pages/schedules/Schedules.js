@@ -39,6 +39,7 @@ const Schedules = () => {
       const data = await response.json()
       if (data.optimized_schedule && Array.isArray(data.optimized_schedule)) {
         setSchedules(data.optimized_schedule)
+        console.log(data.optimized_schedule)
       } else {
         setSchedules([])
       }

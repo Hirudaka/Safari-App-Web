@@ -31,6 +31,7 @@ const Trip = () => {
         const data = await response.json()
         if (response.ok) {
           setTrip(data)
+          console.log('Trip details:', data)
         } else {
           console.error('Trip not found:', data.error)
         }
@@ -168,7 +169,7 @@ const Trip = () => {
                     </tr>
                   </tbody>
                 </table>
-                {trip.locations && trip.locations.length >= 2 ? (
+                {trip.locations && trip.locations.length >= 1 ? (
                   <MapContainer
                     style={mapContainerStyle}
                     center={lastLocation ? lastLocation : trip.locations[0]} // Center map at the last location

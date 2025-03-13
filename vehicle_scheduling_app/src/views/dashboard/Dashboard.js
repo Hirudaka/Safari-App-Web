@@ -243,25 +243,92 @@ const Dashboard = () => {
     },
   }
 
+  const [searchTerm, setSearchTerm] = useState('')
+
+  // Function to filter trips
+  const filterTrips = (term) => {
+    if (term.trim() === '') {
+      setFilteredTrips(trips)
+    } else {
+      const filtered = trips.filter((trip) =>
+        trip.vehicle_id?.toLowerCase().includes(term.toLowerCase()),
+      )
+      setFilteredTrips(filtered)
+    }
+  }
+
+  // Handle input change
+  const handleSearchChange = (event) => {
+    const term = event.target.value
+    setSearchTerm(term)
+    filterTrips(term)
+  }
+
+  // Ensure trips update when data changes
+  useEffect(() => {
+    filterTrips(searchTerm)
+  }, [trips])
+
+  const endTrip = async (tripId) => {
+    try {
+      const response = await fetch(`http://127.0.0.1:5001/end_trip/${tripId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        // Update the trip status in the frontend
+        setTrips((prevTrips) =>
+          prevTrips.map((trip) =>
+            trip.trip_id === tripId ? { ...trip, status: 'completed' } : trip,
+          ),
+        )
+        setFilteredTrips((prevTrips) =>
+          prevTrips.map((trip) =>
+            trip.trip_id === tripId ? { ...trip, status: 'completed' } : trip,
+          ),
+        )
+      } else {
+        console.error('Failed to end trip')
+      }
+    } catch (error) {
+      console.error('Error ending trip:', error)
+    }
+  }
+
+  const formatTripTime = (seconds) => {
+    if (typeof seconds !== 'number' || isNaN(seconds)) {
+      return 'N/A' // Return fallback if invalid
+    }
+
+    const totalSeconds = Math.floor(seconds) // Ensure it's an integer
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const secs = totalSeconds % 60
+
+    return `${hours}h ${minutes}m ${secs}s`
+  }
+
   return (
     <>
       <CCard className="mb-4">
         <CCardBody>
-          <CRow>
+          <CRow className="align-items-center">
             <CCol sm={5}>
               <h4 className="card-title mb-0">Traffic</h4>
               <div className="small text-body-secondary">Today</div>
             </CCol>
-            <CCol sm={6} className="d-none d-md-block">
-              <div className="d-flex justify-content-center">
-                <ReactDatePicker
-                  selected={selectedDate}
-                  onChange={handleDateChange}
-                  dateFormat="yyyy/MM/dd"
-                  className="form-control custom-date-picker "
-                  placeholderText="Select a date"
-                />
-              </div>
+
+            <CCol sm={3}>
+              <ReactDatePicker
+                selected={selectedDate}
+                onChange={handleDateChange}
+                dateFormat="yyyy/MM/dd"
+                className="form-control input-equal-height"
+                placeholderText="Select a date"
+              />
             </CCol>
           </CRow>
           <MainChart chartData={chartData} chartOptions={chartOptions} />
@@ -272,51 +339,85 @@ const Dashboard = () => {
           <CCard className="mb-4">
             <CCardHeader>Traffic {' & '} Trips</CCardHeader>
             <CCardBody>
+              <CCol sm={4}>
+                <input
+                  type="text"
+                  className="form-control input-equal-height"
+                  placeholder="Search by Vehicle No"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                />
+              </CCol>
               <br />
               <CTable align="middle" className="mb-0 border" hover responsive>
                 <CTableHead>
                   <CTableRow>
                     <CTableHeaderCell>Avatar</CTableHeaderCell>
                     <CTableHeaderCell>Driver Name</CTableHeaderCell>
+                    <CTableHeaderCell>Vehicle No</CTableHeaderCell>
                     <CTableHeaderCell>Trip Status</CTableHeaderCell>
                     <CTableHeaderCell>Start Time</CTableHeaderCell>
                     <CTableHeaderCell>End Time</CTableHeaderCell>
+                    <CTableHeaderCell>Trip Time</CTableHeaderCell>
                     <CTableHeaderCell>Action</CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {filteredTrips.map((trip) => (
-                    <CTableRow key={trip._id}>
-                      <CTableDataCell>
-                        <CAvatar
-                          size="md"
-                          src={getDriverAvatar(trip.driver_id)}
-                          status={getStatusColor(trip.status)}
-                        />
-                      </CTableDataCell>
-                      <CTableDataCell>{getDriverName(trip.driver_id)}</CTableDataCell>
-                      <CTableDataCell>
-                        <span className={`badge bg-${getStatusColor(trip.status)}`}>
-                          {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
-                        </span>
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        {formatDateTime(trip.entry_time).time || 'Processing'}
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        {formatDateTime2(trip.end_time).time || 'Processing'}
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <CButton
-                          color="info"
-                          variant="outline"
-                          onClick={() => handleViewClick(trip._id)}
-                        >
-                          👁️
-                        </CButton>
+                  {filteredTrips && filteredTrips.length > 0 ? (
+                    filteredTrips.map((trip) => (
+                      <CTableRow key={trip._id}>
+                        <CTableDataCell>
+                          <CAvatar
+                            size="md"
+                            src={getDriverAvatar(trip.driver_id)}
+                            status={getStatusColor(trip.status)}
+                          />
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          {getDriverName(trip.driver_id) || 'Unknown Driver'}
+                        </CTableDataCell>
+                        <CTableDataCell>{trip.vehicle_id || 'N/A'}</CTableDataCell>
+                        <CTableDataCell>
+                          <span className={`badge bg-${getStatusColor(trip.status)}`}>
+                            {trip.status
+                              ? trip.status.charAt(0).toUpperCase() + trip.status.slice(1)
+                              : 'Pending'}
+                          </span>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          {trip.entry_time ? formatDateTime(trip.entry_time).time : 'Processing'}
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          {trip.end_time ? formatDateTime2(trip.end_time).time : 'Processing'}
+                        </CTableDataCell>
+                        <CTableDataCell>{formatTripTime(trip.trip_time)}</CTableDataCell>
+                        <CTableDataCell>
+                          <CButton
+                            color="info"
+                            variant="outline"
+                            onClick={() => handleViewClick(trip._id)}
+                            style={{ marginRight: '5px' }}
+                          >
+                            👁️
+                          </CButton>
+                          <CButton
+                            color="info"
+                            variant="outline"
+                            onClick={() => endTrip(trip._id)}
+                            disabled={trip.status === 'completed'}
+                          >
+                            End Trip
+                          </CButton>
+                        </CTableDataCell>
+                      </CTableRow>
+                    ))
+                  ) : (
+                    <CTableRow>
+                      <CTableDataCell colSpan="7" className="text-center">
+                        No results found
                       </CTableDataCell>
                     </CTableRow>
-                  ))}
+                  )}
                 </CTableBody>
               </CTable>
             </CCardBody>
