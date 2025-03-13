@@ -7,6 +7,7 @@ from pymongo.errors import ConnectionFailure
 
 def create_app():
     app = Flask(__name__)
+    CORS(app)
 
     try:
        # CORS(app, resources={r"/*": {"origins": "*"}})

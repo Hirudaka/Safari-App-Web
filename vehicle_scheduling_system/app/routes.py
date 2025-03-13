@@ -10,15 +10,10 @@ from app.models import Driver
 from app.models import Trip
 from .genetic_algorithm import get_vehicle_data_from_db,fetch_and_schedule_for_next_10_drivers
 from app.hybrid import fetch_and_schedule_for_next_10_drivers_hybrid
-from app.algorithmHandler import run_all_algorithms,compare_results,run_multi_objective_optimization
+from app.algorithmHandler import run_all_algorithms,compare_results
 from app.genetic_algorithm import run_genetic_algorithm
-from app.test_nsga2 import SafariSchedulingProblem
 from datetime import datetime
 from bson import ObjectId
-import json
-import uuid
-from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.optimize import minimize
 
 
 main = Blueprint('main', __name__)
@@ -39,45 +34,20 @@ main = Blueprint('main', __name__)
 #     current_app.mongo_db.optimized_schedule.insert_one({"schedule": schedule})  
 #     return jsonify({'schedule': schedule}), 200
 
-def convert_objectid(obj):
-    """ Recursively convert ObjectId to string in a dictionary or list. """
-    if isinstance(obj, dict):
-        return {k: convert_objectid(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_objectid(i) for i in obj]
-    elif isinstance(obj, ObjectId):  
-        return str(obj)  # Convert ObjectId to string
-    return obj
-
 @main.route('/api/schedule', methods=['GET'])
 def get_schedule():
     # Fetch vehicle data (schedule) from the database
     schedule, _ = get_vehicle_data_from_db(current_app.mongo_db)  
-    print("schedule","\n",schedule)
+
     optimized_schedule = run_genetic_algorithm(schedule)  # Pass the fetched schedule to the algorithm
     optimized_schedule = fetch_and_schedule_for_next_10_drivers()
     hybrid_schedule = fetch_and_schedule_for_next_10_drivers_hybrid()
 
-    # problem = SafariSchedulingProblem(schedule)
-
-    # # Define the NSGA-II algorithm
-    # algorithm = NSGA2(pop_size=100)
-
-    # # Run the optimization
-    # res = minimize(problem, algorithm, ('n_gen', 200), verbose=True)
-
-    # # Print the results
-    # print("Best Solutions (X):\n", res.X)
-    # print("Objective Values (F):\n", res.F)
-
-
     print("hi",hybrid_schedule)
     # Add a `booked` field to each schedule item
     for item in hybrid_schedule:
-        item["id"]=str(uuid.uuid4())
         item["booked"] = False
         item["diverId"]=None
-        current_app.mongo_db.optimized_schedule.insert_one(item)  # Save the optimized schedule to MongoDB
 
     # results = run_all_algorithms(schedule)
     # best_result = compare_results(results)
@@ -87,8 +57,9 @@ def get_schedule():
     # print("\n")  # Corrected newline
     # (best_result)
     
-    return jsonify({'schedule': convert_objectid(hybrid_schedule)}), 200
-
+    current_app.mongo_db.optimized_schedule.insert_one({"schedule": hybrid_schedule})
+   
+    return jsonify({'schedule': hybrid_schedule}), 200
 
 @main.route('/end_trip/<trip_id>', methods=['PUT'])
 def end_trip(trip_id):  
@@ -116,21 +87,23 @@ def end_trip(trip_id):
     return jsonify({"message": "Trip ended", "end_time": end_time}), 200
 
 
+
 @main.route('/api/optimized_schedule', methods=['GET'])
 def get_optimized_schedule():
-    # Retrieve all optimized schedule entries, sorted by most recent
-    optimized_schedules = list(current_app.mongo_db.optimized_schedule.find().sort("_id", -1))
+    """
+    Fetch the latest optimized schedule from the database.
+    """
+    # Retrieve the latest optimized schedule from MongoDB
+    optimized_schedule = current_app.mongo_db.optimized_schedule.find_one(sort=[("_id", -1)])  
 
-    if not optimized_schedules:
+    if not optimized_schedule:
+        # If no optimized schedule exists
         return jsonify({'message': 'No optimized schedule found.'}), 404
 
-    # Convert ObjectId fields before returning the response
-    optimized_schedules = convert_objectid(optimized_schedules)
-
-    print("Retrieved from DB:", json.dumps(optimized_schedules, indent=2, default=str))  # Debug output
-
-    return jsonify({'optimized_schedule': optimized_schedules}), 200
-
+    # Remove the MongoDB-specific "_id" field for cleaner output
+    optimized_schedule.pop("_id", None)
+    
+    return jsonify({'optimized_schedule': optimized_schedule}), 200
 
 
 
@@ -163,43 +136,83 @@ def get_optimized_schedule():
 #     return jsonify({"message": "Trip ended", "end_time": end_time}), 200
 
 
+# @main.route('/api/start_trip', methods=['POST'])
+# def start_trip():
+#     data = request.get_json()
+
+   
+#     driver_id = data.get("driver_id")
+#     vehicle_id = data.get("vehicle_id")
+#     if not driver_id or not vehicle_id:
+#         return jsonify({"error": "Driver ID and Vehicle ID are required"}), 400
+
+   
+#     entry_time = datetime.now() 
+#     trip_time = data.get("trip_time", 1)
+#     congestion = data.get("congestion", 0) 
+#     speed = data.get("speed", []) 
+#     locations = data.get("locations", []) 
+
+#     if not all(isinstance(loc, list) and len(loc) == 2 for loc in locations):
+#         return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
+
+    
+#     trip_data = {
+#         "driver_id": driver_id,
+#         "vehicle_id": vehicle_id,
+#         "entry_time": entry_time,
+#         "trip_time": trip_time,
+#         "congestion": congestion,
+#         "speed": speed,
+#         "locations": locations,
+#         "status": "ongoing"  
+#     }
+
+   
+#     db = current_app.mongo_db['trips']
+#     inserted_trip = db.insert_one(trip_data)
+
+   
+#     trip_data["_id"] = str(inserted_trip.inserted_id)
+
+#     return jsonify({
+#         "message": "Trip started successfully.",
+#         "trip_details": trip_data
+#     }), 201
 @main.route('/api/start_trip', methods=['POST'])
 def start_trip():
     data = request.get_json()
 
-   
     driver_id = data.get("driver_id")
     vehicle_id = data.get("vehicle_id")
     if not driver_id or not vehicle_id:
         return jsonify({"error": "Driver ID and Vehicle ID are required"}), 400
 
-   
-    entry_time = datetime.now() 
-    trip_time = datetime.now()-entry_time
-    congestion = data.get("congestion", 0) 
-    speed = data.get("speed", []) 
-    locations = data.get("locations", []) 
+    entry_time = datetime.now()
+    trip_time = datetime.now() - entry_time
+    trip_time_seconds = trip_time.total_seconds()  # Convert to seconds
+
+    congestion = data.get("congestion", 0)
+    speed = data.get("speed", [])
+    locations = data.get("locations", [])
 
     if not all(isinstance(loc, list) and len(loc) == 2 for loc in locations):
         return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
 
-    
     trip_data = {
         "driver_id": driver_id,
         "vehicle_id": vehicle_id,
         "entry_time": entry_time,
-        "trip_time": trip_time,
+        "trip_time": trip_time_seconds,  # Store as seconds
         "congestion": congestion,
         "speed": speed,
         "locations": locations,
-        "status": "ongoing"  
+        "status": "ongoing"
     }
 
-   
     db = current_app.mongo_db['trips']
     inserted_trip = db.insert_one(trip_data)
 
-   
     trip_data["_id"] = str(inserted_trip.inserted_id)
 
     return jsonify({
@@ -207,37 +220,37 @@ def start_trip():
         "trip_details": trip_data
     }), 201
 
-# @main.route('/api/trips/<trip_id>/add_locations', methods=['PUT'])
-# def append_locations(trip_id):
-#     data = request.get_json()
-#     new_locations = data.get("locations", [])
+@main.route('/api/trips/<trip_id>/add_locations', methods=['PUT'])
+def append_locations(trip_id):
+    data = request.get_json()
+    new_locations = data.get("locations", [])
 
    
-#     if not all(isinstance(loc, list) and len(loc) == 2 for loc in new_locations):
-#         return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
+    if not all(isinstance(loc, list) and len(loc) == 2 for loc in new_locations):
+        return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
 
    
-#     try:
-#         trip_id_obj = ObjectId(trip_id)
-#     except Exception as e:
-#         return jsonify({"error": "Invalid ObjectId format"}), 400
+    try:
+        trip_id_obj = ObjectId(trip_id)
+    except Exception as e:
+        return jsonify({"error": "Invalid ObjectId format"}), 400
 
-#     # Find the trip
-#     trip = current_app.mongo_db['trips'].find_one({"_id": trip_id_obj})
-#     if not trip:
-#         return jsonify({"error": "Trip not found"}), 404
+    # Find the trip
+    trip = current_app.mongo_db['trips'].find_one({"_id": trip_id_obj})
+    if not trip:
+        return jsonify({"error": "Trip not found"}), 404
 
-#     # Append new locations to the existing ones
-#     current_locations = trip.get("locations", [])
-#     updated_locations = current_locations + new_locations
+    # Append new locations to the existing ones
+    current_locations = trip.get("locations", [])
+    updated_locations = current_locations + new_locations
 
    
-#     current_app.mongo_db['trips'].update_one(
-#         {"_id": trip_id_obj},
-#         {"$set": {"locations": updated_locations}}
-#     )
+    current_app.mongo_db['trips'].update_one(
+        {"_id": trip_id_obj},
+        {"$set": {"locations": updated_locations}}
+    )
 
-#     return jsonify({"message": "Locations added successfully", "updated_locations": updated_locations}), 200
+    return jsonify({"message": "Locations added successfully", "updated_locations": updated_locations}), 200
 
 @main.route('/api/trips/<trip_id>/updateStatus', methods=['PUT'])
 def update_trip_status(trip_id):
@@ -446,93 +459,39 @@ def get_trip_by_id(trip_id):
     
 @main.route('/api/book_schedule', methods=['POST'])
 def book_schedule():
+    data = request.get_json()
+    schedule_id = data.get("schedule_id")  # Unique ID of the schedule to be booked
+    driver_id = data.get("driver_id") 
+
+    if not schedule_id:
+        return jsonify({"error": "Schedule ID is required"}), 400
+
     try:
-        data = request.get_json()
-        mainSchedule_id = data.get("mainSchedule_id")  # Main schedule document ID
-        driver_id = data.get("driver_id")  # Driver ID (likely a UUID)
-        
-        # Validate required fields
-        if not mainSchedule_id or not driver_id:
-            return jsonify({"error": "Schedule ID and Driver ID are required"}), 400
+        # Convert schedule_id to ObjectId if necessary
+        schedule_id_obj = ObjectId(schedule_id)
+    except Exception as e:
+        return jsonify({"error": "Invalid Schedule ID format"}), 400
 
-        print(f"Booking schedule {mainSchedule_id} for driver {driver_id}")  # Debug log
+    # Find the schedule in the database
+    db = current_app.mongo_db['optimized_schedule']
+    schedule = db.find_one({"_id": schedule_id_obj})
 
-        # Convert mainSchedule_id to ObjectId
-        try:
-            mainSchedule_obj_id = ObjectId(mainSchedule_id)
-        except Exception as e:
-            return jsonify({"error": "Invalid mainSchedule_id format"}), 400
+    if not schedule:
+        return jsonify({"error": "Schedule not found"}), 404
 
-        # Get database reference
-        db = current_app.mongo_db
-        schedule_collection = db['optimized_schedule']
-        driver_collection = db['drivers']  # Ensure drivers are stored in a separate collection
+    # Check if the schedule is already booked
+    if schedule.get("booked", False):
+        return jsonify({"error": "Schedule is already booked"}), 400
 
-        # Find the main schedule document
-        schedule = schedule_collection.find_one({"_id": mainSchedule_obj_id})
-        if not schedule:
-            return jsonify({"error": "Schedule not found"}), 404
-
-        # Find the driver details
-        driver = Driver.objects(driver_id=driver_id).first()
-        print(f"Driver found: {driver}")  # Debug log
-        driver_name = driver.name  # Get the driver's name
-        
-        if not driver:
-            return jsonify({"error": "Driver not found"}), 404
-
-        print(f"Driver found: {driver_name}")
-
-        # Check if the schedule is already booked
-        if schedule.get("booked", False):
-            print("Schedule is already booked")
-            return jsonify({"error": "Schedule is already booked"}), 400
-
-        # Update the schedule to mark it as booked and associate the driver ID
-        result = schedule_collection.update_one(
-            {"_id": mainSchedule_obj_id},
-            {
-                "$set": {
-                    "booked": True,
-                    "driverId": driver_id,
-                    "driverName": driver_name
-                }
+    # Update the schedule to mark it as booked
+    db.update_one(
+        {"_id": schedule_id_obj},
+        {
+            "$set": {
+                "booked": True,
+                "driverId": driver_id  
             }
-        )
+        }
+    )
 
-        if result.modified_count == 0:
-            return jsonify({"error": "Failed to book schedule"}), 500
-
-        return jsonify({"message": "Schedule booked successfully"}), 200
-
-    except Exception as e:
-        print(f"Error in book_schedule: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-    
-@main.route('/api/trips/driver/<driver_id>', methods=['GET'])
-def get_trips_by_driver(driver_id):
-    try:
-        print(f"Fetching trips for driver ID: {driver_id}")  # Debug log
-        
-        db = current_app.mongo_db['trips']
-        
-        # Query trips where driver_id matches and status is either "idle" or "ongoing"
-        trips = list(db.find({"driver_id": driver_id, "status": {"$in": ["idle", "ongoing"]}}))
-
-        if trips:
-            for trip in trips:
-                trip["_id"] = str(trip["_id"])
-                if "entry_time" in trip:
-                    trip["entry_time"] = trip["entry_time"].isoformat()
-                if "end_time" in trip:
-                    trip["end_time"] = trip["end_time"].isoformat()
-
-            print(f"Found trips: {trips}")  # Debug log
-            return jsonify(trips), 200
-        else:
-            print("No trips found")  # Debug log
-            return jsonify({'message': 'No trips found'}), 404
-
-    except Exception as e:
-        print(f"Error occurred: {str(e)}")  # Debug log
-        return jsonify({'error': str(e)}), 500
+    return jsonify({"message": "Schedule booked successfully"}), 200
