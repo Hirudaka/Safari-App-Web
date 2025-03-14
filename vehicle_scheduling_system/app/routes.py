@@ -230,7 +230,6 @@ def start_trip():
     trip_time = datetime.now() - entry_time
     trip_time_seconds = trip_time.total_seconds()  # Convert to seconds
 
-    congestion = data.get("congestion", [])
     speed = data.get("speed", [])
     locations = data.get("locations", [])
 
@@ -242,7 +241,6 @@ def start_trip():
         "vehicle_id": vehicle_id,
         "entry_time": entry_time,
         "trip_time": trip_time_seconds,  # Store as seconds
-        "congestion": congestion,
         "speed": speed,
         "locations": locations,
         "status": "ongoing"
@@ -295,7 +293,9 @@ def update_trip_status(trip_id):
     data = request.get_json()
     new_locations = data.get("locations", [])
     new_speed = data.get("speed", [])
-    new_congestion = data.get("congestion", 0)
+    new_congestion = data.get("congestion", [])  # Ensure it's a list
+    if not isinstance(new_congestion, list):  
+        new_congestion = [new_congestion] 
 
 
     # Validate new locations
@@ -335,15 +335,18 @@ def update_trip_status(trip_id):
     # Append new locations and speed to the existing ones
     current_locations = trip.get("locations", [])
     current_speed = trip.get("speed", [])
-    current_congestion = trip.get("congestion", 0)
+    current_congestion = trip.get("congestion", [])
+    if not isinstance(current_congestion, list):
+        current_congestion = [current_congestion]  # Convert to list if it's not
+
+    updated_congestion = current_congestion + new_congestion
 
     updated_locations = current_locations + new_locations
     updated_speed = current_speed + new_speed
-    updated_congestion = trip.get("congestion", []) + new_congestion
 
     # Check the last speed to determine the status
     last_speed = updated_speed[-1] if updated_speed else None
-    new_status = "idle" if last_speed == 0 else "ongoing"
+    new_status = "idle" if last_speed < 1 else "ongoing"
 
     # Update the trip in the database
     current_app.mongo_db['trips'].update_one(
