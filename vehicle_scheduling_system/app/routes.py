@@ -295,7 +295,6 @@ def update_trip_status(trip_id):
     data = request.get_json()
     new_locations = data.get("locations", [])
     new_speed = data.get("speed", [])
-    new_trip_time = data.get("trip_time", 0) 
     new_congestion = data.get("congestion", 0)
 
 
@@ -308,8 +307,6 @@ def update_trip_status(trip_id):
         return jsonify({"error": "Speed must be a list of numbers"}), 400
 
     # Validate new trip time
-    if not isinstance(new_trip_time, (int, float)) or new_trip_time < 0:
-        return jsonify({"error": "Trip time must be a positive number"}), 400
 
     # Convert trip_id string to ObjectId
     try:
@@ -321,16 +318,28 @@ def update_trip_status(trip_id):
     trip = current_app.mongo_db['trips'].find_one({"_id": trip_id_obj})
     if not trip:
         return jsonify({"error": "Trip not found"}), 404
+    
+    entry_time = trip.get("entry_time")
+    
+    if not entry_time:
+        return jsonify({"error": "Entry time is missing for this trip"}), 400
+
+    # Convert entry_time to a datetime object if it's stored as a string
+    if isinstance(entry_time, str):
+        entry_time = datetime.fromisoformat(entry_time)
+
+    end_time = datetime.now()
+    # Calculate trip duration
+    trip_duration = (end_time - entry_time).total_seconds()  # Duration in seconds
 
     # Append new locations and speed to the existing ones
     current_locations = trip.get("locations", [])
     current_speed = trip.get("speed", [])
-    current_trip_time = trip.get("trip_time", 0)
     current_congestion = trip.get("congestion", 0)
 
     updated_locations = current_locations + new_locations
     updated_speed = current_speed + new_speed
-    updated_trip_time = current_trip_time + new_trip_time
+    update_congestion = current_congestion+new_congestion
 
     # Check the last speed to determine the status
     last_speed = updated_speed[-1] if updated_speed else None
@@ -343,9 +352,9 @@ def update_trip_status(trip_id):
             "$set": {
                 "locations": updated_locations,
                 "speed": updated_speed,
-                "trip_time": updated_trip_time,
+                "trip_time": trip_duration,
                 "status": new_status,
-                "congestion": new_congestion
+                "congestion": update_congestion
             }
         }
     )
@@ -354,7 +363,7 @@ def update_trip_status(trip_id):
         "message": "Trip updated successfully",
         "updated_locations": updated_locations,
         "updated_speed": updated_speed,
-        "updated_trip_time": updated_trip_time,
+        "updated_trip_time": trip_duration,
         "new_status": new_status
     }), 200
 
