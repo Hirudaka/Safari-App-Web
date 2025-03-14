@@ -41,7 +41,10 @@ def calculate_safari_violations(schedule):
 def fitness(schedule, generation=0):
     weights = dynamic_weights(generation)
     total_time = sum(vehicle["trip_time"] for vehicle in schedule)
-    congestion_penalty = sum(vehicle.get("congestion", 0) for vehicle in schedule)
+    congestion_penalty = sum(
+    sum(vehicle["congestion"]) if isinstance(vehicle.get("congestion"), list) else vehicle.get("congestion", 0)
+    for vehicle in schedule
+    )
     speed_penalty = sum(
         (max(0, 30 - sum(vehicle["speed"]) / len(vehicle["speed"])) ** 2)
         for vehicle in schedule
@@ -120,7 +123,7 @@ def get_vehicle_data_from_db(db):
         {
             "entry_time": trip["entry_time"].hour + (0.5 if trip["entry_time"].minute >= 30 else 0),
             "trip_time": trip["trip_time"],
-            "congestion": trip.get("congestion", 0),
+            "congestion": trip.get("congestion", [0])[0],  
             "speed": trip.get("speed", [0]),
             "locations": trip.get("locations", []),
         }
@@ -133,7 +136,7 @@ def generate_random_trips(num_trips):
         {
             "entry_time": round(random.uniform(5.5, 16.5), 1),
             "trip_time": round(random.uniform(1.0, 3.0), 1),
-            "congestion": random.randint(0, 5),
+            "congestion": random.randint(0, 5),  # Store a single integer, not a list
             "speed": [random.randint(30, 60) for _ in range(5)],
             
         }

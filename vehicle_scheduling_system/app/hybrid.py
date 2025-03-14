@@ -60,7 +60,13 @@ def remove_duplicates(population):
 def fitness(schedule, generation=0):
     weights = dynamic_weights(generation)
     total_time = sum(vehicle["trip_time"] for vehicle in schedule)
-    congestion_penalty = sum(vehicle.get("congestion", 0) for vehicle in schedule)
+    
+    # Ensure congestion is always an integer
+    congestion_penalty = sum(
+        sum(vehicle.get("congestion", [0])) if isinstance(vehicle.get("congestion"), list) else vehicle.get("congestion", 0)
+        for vehicle in schedule
+    )
+
     speed_penalty = sum(
         (max(0, 30 - sum(vehicle["speed"]) / len(vehicle["speed"])) ** 2)
         for vehicle in schedule
@@ -74,6 +80,7 @@ def fitness(schedule, generation=0):
         + weights["speed"] * speed_penalty
         + penalty_violations
     )
+
 
 def selection(population):
     total_fitness = sum(1 / (1 + fitness(ind)) for ind in population)
@@ -94,27 +101,23 @@ def crossover(parent1, parent2):
     return child1, child2
 
 def mutate(schedule, mutation_rate):
-    used_times = {round(vehicle["entry_time"], 1) for vehicle in schedule}
-
     for vehicle in schedule:
         if random.random() < mutation_rate:
-            original_time = round(vehicle["entry_time"], 1)
-            new_time = original_time + random.uniform(-1, 1)
-            new_time = max(5.5, min(16.5, new_time))
+            # Ensure congestion is an integer if it's a list
+            if isinstance(vehicle["congestion"], list):
+                vehicle["congestion"] = max(0, min(5, vehicle["congestion"][0] + random.randint(-1, 1)))
+            else:
+                vehicle["congestion"] = max(0, min(5, vehicle["congestion"] + random.randint(-1, 1)))
 
-            while round(new_time, 1) in used_times:
-                new_time += 0.5
-                if new_time > 16.5:
-                    new_time = 5.5
-            used_times.add(round(new_time, 1))
-
-            vehicle["congestion"] = max(0, min(5, vehicle["congestion"] + random.randint(-1, 1)))
+            # Other mutation logic (for speed, entry time, etc.)
             vehicle["speed"] = [
                 max(30, min(60, speed + random.randint(-5, 5)))
                 for speed in vehicle["speed"]
             ]
-            vehicle["entry_time"] = round(new_time, 1)
+            # Mutate entry time logic here
+            vehicle["entry_time"] = round(vehicle["entry_time"] + random.uniform(-0.20, 0.20), 1)
     return schedule
+
 
 def run_hybrid_algorithm(schedule):
     population = initialize_population(schedule)

@@ -36,7 +36,9 @@ def remove_duplicates(population):
 def fitness(schedule, generation=0):
     weights = dynamic_weights(generation)
     total_time = sum(vehicle["trip_time"] for vehicle in schedule)
-    congestion_penalty = sum(vehicle.get("congestion", 0) for vehicle in schedule)
+    congestion_penalty = sum(
+    sum(vehicle["congestion"]) if isinstance(vehicle.get("congestion"), list) else vehicle.get("congestion", 0)
+    for vehicle in schedule)
     speed_penalty = sum(
         (max(0, 30 - sum(vehicle["speed"]) / len(vehicle["speed"])) ** 2)
         for vehicle in schedule
