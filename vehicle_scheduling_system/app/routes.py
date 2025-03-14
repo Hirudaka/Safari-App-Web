@@ -230,7 +230,7 @@ def start_trip():
     trip_time = datetime.now() - entry_time
     trip_time_seconds = trip_time.total_seconds()  # Convert to seconds
 
-    congestion = data.get("congestion", 0)
+    congestion = data.get("congestion", [])
     speed = data.get("speed", [])
     locations = data.get("locations", [])
 
@@ -339,7 +339,7 @@ def update_trip_status(trip_id):
 
     updated_locations = current_locations + new_locations
     updated_speed = current_speed + new_speed
-    update_congestion = current_congestion+new_congestion
+    updated_congestion = trip.get("congestion", []) + new_congestion
 
     # Check the last speed to determine the status
     last_speed = updated_speed[-1] if updated_speed else None
@@ -354,7 +354,7 @@ def update_trip_status(trip_id):
                 "speed": updated_speed,
                 "trip_time": trip_duration,
                 "status": new_status,
-                "congestion": update_congestion
+                "congestion": updated_congestion
             }
         }
     )
