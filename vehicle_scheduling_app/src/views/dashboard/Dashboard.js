@@ -290,6 +290,8 @@ const Dashboard = () => {
             trip.trip_id === tripId ? { ...trip, status: 'completed' } : trip,
           ),
         )
+        alert('Trip ended successfully')
+        window.location.reload()
       } else {
         console.error('Failed to end trip')
       }
@@ -316,7 +318,7 @@ const Dashboard = () => {
       <CCard className="mb-4">
         <CCardBody>
           <CRow className="align-items-center">
-            <CCol sm={5}>
+            <CCol sm={9}>
               <h4 className="card-title mb-0">Traffic</h4>
               <div className="small text-body-secondary">Today</div>
             </CCol>
