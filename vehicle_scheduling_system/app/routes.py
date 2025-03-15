@@ -98,7 +98,7 @@ def end_trip(trip_id):
     except Exception as e:
         return jsonify({"error": "Invalid ObjectId format"}), 400
 
-    trip = current_app.mongo_db['trips'].find_one({"_id": trip_id_obj, "status": "ongoing"})
+    trip = current_app.mongo_db['trips'].find_one({"_id": trip_id_obj})
     
     if not trip:
         return jsonify({"error": "No ongoing trip found with this ID"}), 400
