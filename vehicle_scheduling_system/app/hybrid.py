@@ -156,6 +156,20 @@ def get_vehicle_data_from_db(db):
     ]
     return schedule, len(schedule)
 
+def get_schedule_data_from_db(db):
+    trips = db.optimized_schedule.find()
+    schedule = [
+        {
+            "entry_time": trip["entry_time"],
+            "trip_time": trip["trip_time"],
+            "congestion": trip.get("congestion", 0),
+            "speed": trip.get("speed", [0]),
+            "locations": trip.get("locations", []),
+        }
+        for trip in trips
+    ]
+    return schedule, len(schedule)
+
 # Simulate random trips
 def generate_random_trips(num_trips):
     return [
@@ -164,20 +178,43 @@ def generate_random_trips(num_trips):
             "trip_time": round(random.uniform(1.0, 3.0), 1),
             "congestion": random.randint(0, 5),
             "speed": [random.randint(30, 60) for _ in range(5)],
-            
         }
         for _ in range(num_trips)
     ]
 
+# Deduplicate schedules based on entry_time, trip_time, and speed
+def deduplicate_schedules(schedules):
+    unique_schedules = []
+    seen = set()
+
+    for schedule in schedules:
+        schedule_tuple = tuple(
+            (trip["entry_time"], trip["trip_time"], tuple(trip["speed"]))
+            for trip in schedule
+        )
+        if schedule_tuple not in seen:
+            seen.add(schedule_tuple)
+            unique_schedules.append(schedule)
+
+    return unique_schedules
+
 # Main function to run the hybrid algorithm
 def fetch_and_schedule_for_next_10_drivers_hybrid():
-    db_schedule, _ = get_vehicle_data_from_db(db)
-    #random trips
-    simulated_trips = generate_random_trips(10)
-    schedule = db_schedule + simulated_trips
+    # Fetch schedules from both database sources
+    schedule_from_db, _ = get_schedule_data_from_db(db)
+    trips_from_db, _ = get_vehicle_data_from_db(db)
 
-    print(f"Fetched vehicle data: {schedule}")
-    best_schedule = run_hybrid_algorithm(schedule)
+    # Generate random trips
+    simulated_trips = generate_random_trips(10)
+
+    # Combine all schedules
+    combined_schedule =  simulated_trips
+
+    # Deduplicate the combined schedule
+    combined_schedule = deduplicate_schedules([combined_schedule])[0]
+
+    print(f"Fetched vehicle data: {combined_schedule}")
+    best_schedule = run_hybrid_algorithm(combined_schedule)
     print(f"----Best schedule for next drivers using Hybrid (GA + SA): {best_schedule}")
     return best_schedule
 
@@ -190,17 +227,17 @@ def initialize_population(schedule):
         new_schedule = []
 
         for trip in schedule:
-            entry_time = trip["entry_time"] + random.uniform(-0.20, 0.20)
-            entry_time = max(5.5, min(16.5, entry_time))
+            entry_time = trip["entry_time"]
 
+            # Ensure the entry time is unique
             while round(entry_time, 1) in used_times:
-                entry_time += 0.5
+                entry_time += 0.1  # Adjust the entry time slightly to avoid duplicates
                 if entry_time > 16.5:
-                    entry_time = 5.5
+                    entry_time = 5.5  # Wrap around if necessary
 
             used_times.add(round(entry_time, 1))
-            new_trp = dict(trip, entry_time=round(entry_time, 1))
-            new_schedule.append(new_trp)
+            new_trip = dict(trip, entry_time=round(entry_time, 1))
+            new_schedule.append(new_trip)
 
         population.append(new_schedule)
     return population

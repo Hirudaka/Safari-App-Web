@@ -9,6 +9,7 @@ from base64 import b64encode
 from app.models import Driver
 from app.models import Trip
 from .genetic_algorithm import get_vehicle_data_from_db,fetch_and_schedule_for_next_10_drivers
+# from app.hybrid import fetch_and_schedule_for_next_10_drivers_hybrid,compare_and_select_best_schedule
 from app.hybrid import fetch_and_schedule_for_next_10_drivers_hybrid
 from app.algorithmHandler import run_all_algorithms,run_multi_objective_optimization
 from app.genetic_algorithm import run_genetic_algorithm
@@ -56,8 +57,8 @@ def get_schedule():
     print("schedule","\n",schedule)
     optimized_schedule = run_genetic_algorithm(schedule)  # Pass the fetched schedule to the algorithm
     optimized_schedule = fetch_and_schedule_for_next_10_drivers()
+    #hybrid_schedule = compare_and_select_best_schedule()
     hybrid_schedule = fetch_and_schedule_for_next_10_drivers_hybrid()
-
     # problem = SafariSchedulingProblem(schedule)
 
     # # Define the NSGA-II algorithm
@@ -243,6 +244,7 @@ def start_trip():
         "trip_time": trip_time_seconds,  # Store as seconds
         "speed": speed,
         "locations": locations,
+        "congestion": [0],
         "status": "ongoing"
     }
 
