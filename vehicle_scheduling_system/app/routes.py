@@ -666,7 +666,10 @@ def login():
             return jsonify({'error': 'Invalid password'}), 401
 
         # Return a success message (without tokens)
-        return jsonify({'message': 'Login successful!'}), 200
+        return jsonify({
+            'message': 'Login successful!',
+            'role': user['role']  # Add this line to return the role
+        }), 200
 
     except Exception as e:
         print(f"Error occurred: {str(e)}")  # Debug log
