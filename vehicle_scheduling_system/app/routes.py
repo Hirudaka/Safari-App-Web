@@ -601,3 +601,110 @@ def get_trips_by_driver(driver_id):
     except Exception as e:
         print(f"Error occurred: {str(e)}")  # Debug log
         return jsonify({'error': str(e)}), 500
+
+    # Register a new user
+@main.route('/UserRegister', methods=['POST'])
+def register():
+    try:
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+        role = data.get('role')
+            
+        if not email:
+            return jsonify({'error': 'Username and email are required'}), 400           
+                # Check if the user already exists         
+        user = {
+                
+                'email': email,
+                'password': password,
+                'role': role,
+                
+            }
+        db = current_app.mongo_db['users']
+        InsertedUser = db.insert_one(user)           
+        return jsonify({"message": "User registered successfully!"}), 201
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")  # Debug log
+        return jsonify({'error': str(e)}), 500
+
+       
+    # Get all users
+@main.route('/users', methods=['GET'])
+def get_users():
+    return jsonify(users)
+
+# Get a specific user by username
+@main.route('/users/<username>', methods=['GET'])
+def get_user(username):
+    user = next((user for user in users if user['username'] == username), None)
+    if user:
+        return jsonify(user)
+    return jsonify({'error': 'User not found'}), 404
+
+from flask import request, jsonify, current_app
+
+@main.route('/UserLogin', methods=['POST'])
+def login():
+    try:
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+
+        # Check if email and password are provided
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
+
+        # Query the database for the user
+        db = current_app.mongo_db['users']
+        user = db.find_one({'email': email})
+
+        # Check if the user exists
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Compare the plaintext password (not recommended for production)
+        if user['password'] != password:
+            return jsonify({'error': 'Invalid password'}), 401
+
+        # Return a success message (without tokens)
+        return jsonify({'message': 'Login successful!'}), 200
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")  # Debug log
+        return jsonify({'error': str(e)}), 500
+
+
+from flask import request, jsonify, current_app
+
+@main.route('/UserDelete', methods=['DELETE'])
+def delete_user():
+    try:
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+
+        # Check if email and password are provided
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
+
+        # Query the database for the user
+        db = current_app.mongo_db['users']
+        user = db.find_one({'email': email})
+
+        # Check if the user exists
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Verify the password (plaintext comparison, not recommended for production)
+        if user['password'] != password:
+            return jsonify({'error': 'Invalid password'}), 401
+
+        # Delete the user from the database
+        db.delete_one({'email': email})
+
+        return jsonify({'message': 'User account deleted successfully!'}), 200
+
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")  # Debug log
+        return jsonify({'error': str(e)}), 500
