@@ -20,6 +20,7 @@ const Register = () => {
     vehicle_id: '',
     email: '',
     phone: '',
+    password: '',
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -41,7 +42,7 @@ const Register = () => {
       })
       if (response.ok) {
         setMessage('Driver registered successfully!')
-        setFormData({ name: '', vehicle_id: '', email: '', phone: '' })
+        setFormData({ name: '', vehicle_id: '', email: '', phone: '', password: '' })
       } else {
         const errorData = await response.json()
         setMessage(errorData.message || 'Failed to register driver.')
@@ -103,6 +104,16 @@ const Register = () => {
                       placeholder="Phone"
                       name="phone"
                       value={formData.phone}
+                      onChange={handleChange}
+                      required
+                    />
+                  </CInputGroup>
+                  <CInputGroup className="mb-3">
+                    <CInputGroupText>Password</CInputGroupText>
+                    <CFormInput
+                      placeholder="Password"
+                      name="password"
+                      value={formData.password}
                       onChange={handleChange}
                       required
                     />
