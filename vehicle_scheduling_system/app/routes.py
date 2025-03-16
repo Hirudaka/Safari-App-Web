@@ -646,18 +646,30 @@ def register():
         return jsonify({'error': str(e)}), 500
 
        
-    # Get all users
-@main.route('/users', methods=['GET'])
-def get_users():
-    return jsonify(users)
 
-# Get a specific user by username
-@main.route('/users/<username>', methods=['GET'])
-def get_user(username):
-    user = next((user for user in users if user['username'] == username), None)
-    if user:
-        return jsonify(user)
-    return jsonify({'error': 'User not found'}), 404
+
+@main.route('/users/<user_id>', methods=['GET'])
+def get_user(user_id):
+    try:
+        # Convert the user_id string to ObjectId
+        user_object_id = ObjectId(user_id)
+
+        # Query the database for the user
+        db = current_app.mongo_db['users']
+        user = db.find_one({'_id': user_object_id})
+
+        # Check if the user exists
+        if user:
+            # Convert ObjectId to string for JSON serialization
+            user['_id'] = str(user['_id'])
+            return jsonify(user)
+        else:
+            return jsonify({'error': 'User not found'}), 404
+
+    except Exception as e:
+        # Handle invalid ObjectId or other errors
+        print(f"Error occurred: {str(e)}")
+        return jsonify({'error': 'Invalid user ID or other error'}), 400
 
 from flask import request, jsonify, current_app
 
@@ -687,6 +699,7 @@ def login():
         # Return a success message (without tokens)
         return jsonify({
             'message': 'Login successful!',
+            'user_id': str(user['_id']),  # Convert ObjectId to string
             'role': user['role']  # Add this line to return the role
         }), 200
 
