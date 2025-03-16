@@ -433,6 +433,23 @@ def register_driver():
         )
         new_driver.save()
 
+        user = {
+                
+            'email': data["email"],
+            'password': data["password"],
+            'role': "driver",
+            'name': data["name"],
+            'phone': data["phone"],
+            'vehicle_id': data["vehicle_id"],
+            'qr_code': qr_code,
+            'qr_code_image': img_byte_arr,
+            'created_at': datetime.now(),
+            'updated_at': datetime.now()         
+        }
+        
+        db = current_app.mongo_db['users']
+        db.insert_one(user)
+
         return jsonify({
             "message": "Driver registered successfully!",
             "driver_id": driver_id,
