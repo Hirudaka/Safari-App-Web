@@ -1,10 +1,24 @@
 import random
+import math
 from app.config import db
 from app.simulated_annealing import simulated_annealing
 import numpy as np
+from datetime import datetime, timedelta
 
+# Common Parameters
+generations = 500
+num_particles = 50
+max_iterations = 500
+inertia_weight = 0.5
+cognitive_weight = 1.5
+social_weight = 1.5
+
+# Common Functions
 def calculate_diversity(population):
-    entry_times = [vehicle["entry_time"] for schedule in population for vehicle in schedule]
+    # Extract entry times and convert them to timestamps (seconds since epoch)
+    entry_times = [vehicle["entry_time"].timestamp() for schedule in population for vehicle in schedule]
+    
+    # Calculate the standard deviation of the timestamps
     return np.std(entry_times)
 
 def adaptive_mutation_rate(generation, diversity):
@@ -12,8 +26,6 @@ def adaptive_mutation_rate(generation, diversity):
     if diversity < 0.1:  # Threshold for low diversity
         return min(0.1, base_rate * (1 + generation / generations))
     return base_rate
-
-generations = 500
 
 def dynamic_weights(generation):
     return {
@@ -27,7 +39,7 @@ def calculate_safari_violations(schedule):
     timeline = []  # Track vehicle entry and exit times
     for vehicle in schedule:
         entry = vehicle["entry_time"]
-        exit = entry + vehicle["trip_time"]
+        exit = entry + timedelta(hours=vehicle["trip_time"])  # Use timedelta for exit time
         timeline.append((entry, 1))  # Entry event
         timeline.append((exit, -1))  # Exit event
 
@@ -81,7 +93,7 @@ def fitness(schedule, generation=0):
         + penalty_violations
     )
 
-
+# Hybrid Algorithm Functions
 def selection(population):
     total_fitness = sum(1 / (1 + fitness(ind)) for ind in population)
     probabilities = [(1 / (1 + fitness(ind))) / total_fitness for ind in population]
@@ -103,21 +115,21 @@ def crossover(parent1, parent2):
 def mutate(schedule, mutation_rate):
     for vehicle in schedule:
         if random.random() < mutation_rate:
-            # Ensure congestion is an integer if it's a list
+            # Ensure congestion is a list of integers
             if isinstance(vehicle["congestion"], list):
-                vehicle["congestion"] = max(0, min(5, vehicle["congestion"][0] + random.randint(-1, 1)))
+                vehicle["congestion"] = [max(0, min(5, c + random.randint(-1, 1))) for c in vehicle["congestion"]]
             else:
-                vehicle["congestion"] = max(0, min(5, vehicle["congestion"] + random.randint(-1, 1)))
+                vehicle["congestion"] = [max(0, min(5, vehicle["congestion"] + random.randint(-1, 1)))]
 
-            # Other mutation logic (for speed, entry time, etc.)
+            # Mutate speed (ensure it's a list of floats)
             vehicle["speed"] = [
                 max(30, min(60, speed + random.randint(-5, 5)))
                 for speed in vehicle["speed"]
             ]
-            # Mutate entry time logic here
-            vehicle["entry_time"] = round(vehicle["entry_time"] + random.uniform(-0.20, 0.20), 1)
-    return schedule
 
+            # Mutate entry_time using timedelta
+            vehicle["entry_time"] += timedelta(hours=random.uniform(-0.20, 0.20))
+    return schedule
 
 def run_hybrid_algorithm(schedule):
     population = initialize_population(schedule)
@@ -142,81 +154,92 @@ def run_hybrid_algorithm(schedule):
     print(f"Best solution from GA: {best_solution_ga}")
     return best_solution_hybrid
 
+# PSO Algorithm Functions
+class Particle:
+    def __init__(self, schedule):
+        self.position = schedule.copy()  # Current schedule
+        self.velocity = self._initialize_velocity(schedule)  # Velocity for each vehicle
+        self.best_position = schedule.copy()  # Personal best schedule
+        self.best_fitness = fitness(schedule)  # Personal best fitness
+
+    def _initialize_velocity(self, schedule):
+        # Initialize velocity as small random changes to entry times (as timedelta)
+        return [timedelta(hours=random.uniform(-0.5, 0.5)) for _ in range(len(schedule))]
+
+    def update_velocity(self, global_best_position):
+        for i in range(len(self.position)):
+            r1 = random.random()
+            r2 = random.random()
+
+            # Calculate cognitive and social components as timedelta
+            cognitive_component = timedelta(hours=cognitive_weight * r1 * (self.best_position[i]["entry_time"] - self.position[i]["entry_time"]).total_seconds() / 3600)
+            social_component = timedelta(hours=social_weight * r2 * (global_best_position[i]["entry_time"] - self.position[i]["entry_time"]).total_seconds() / 3600)
+
+            # Update velocity (all components are timedelta)
+            self.velocity[i] = timedelta(hours=inertia_weight * self.velocity[i].total_seconds() / 3600) + cognitive_component + social_component
+
+    def update_position(self):
+        for i in range(len(self.position)):
+            # Update entry_time using timedelta
+            new_entry_time = self.position[i]["entry_time"] + self.velocity[i]
+            new_entry_time = max(self.position[i]["entry_time"] - timedelta(hours=0.20), min(self.position[i]["entry_time"] + timedelta(hours=0.20), new_entry_time))
+            self.position[i]["entry_time"] = new_entry_time
+
+        # Update personal best if current position is better
+        current_fitness = fitness(self.position)
+        if current_fitness < self.best_fitness:
+            self.best_position = self.position.copy()
+            self.best_fitness = current_fitness
+
+def run_pso(schedule):
+    # Initialize particles
+    particles = [Particle(schedule) for _ in range(num_particles)]
+    global_best_position = schedule.copy()
+    global_best_fitness = fitness(schedule)
+
+    for iteration in range(max_iterations):
+        for particle in particles:
+            # Update velocity and position
+            particle.update_velocity(global_best_position)
+            particle.update_position()
+
+            # Update global best
+            if particle.best_fitness < global_best_fitness:
+                global_best_position = particle.best_position.copy()
+                global_best_fitness = particle.best_fitness
+
+        # Print progress
+        if iteration % 50 == 0:
+            print(f"Iteration {iteration}: Best Fitness = {global_best_fitness}")
+
+    return global_best_position
+
+# Common Utility Functions
 def get_vehicle_data_from_db(db):
     trips = db.trips.find()
     schedule = [
         {
-            "entry_time": trip["entry_time"].hour + (0.5 if trip["entry_time"].minute >= 30 else 0),
-            "trip_time": trip["trip_time"],
-            "congestion": trip.get("congestion", 0),
-            "speed": trip.get("speed", [0]),
-            "locations": trip.get("locations", []),
+            "entry_time": trip["entry_time"],  # Ensure this is already a datetime object in the database
+            "trip_time": float(trip["trip_time"]),  # Ensure trip_time is a float
+            "congestion": [int(c) for c in trip.get("congestion", [0])],  # Ensure congestion is a list of integers
+            "speed": [float(s) for s in trip.get("speed", [0])],  # Ensure speed is a list of floats
+            "locations": trip.get("locations", []),  # Ensure locations is a list of [lat, lon] pairs
         }
         for trip in trips
     ]
     return schedule, len(schedule)
 
-def get_schedule_data_from_db(db):
-    trips = db.optimized_schedule.find()
-    schedule = [
-        {
-            "entry_time": trip["entry_time"],
-            "trip_time": trip["trip_time"],
-            "congestion": trip.get("congestion", 0),
-            "speed": trip.get("speed", [0]),
-            "locations": trip.get("locations", []),
-        }
-        for trip in trips
-    ]
-    return schedule, len(schedule)
-
-# Simulate random trips
 def generate_random_trips(num_trips):
     return [
         {
-            "entry_time": round(random.uniform(5.5, 16.5), 1),
-            "trip_time": round(random.uniform(1.0, 3.0), 1),
-            "congestion": random.randint(0, 5),
-            "speed": [random.randint(30, 60) for _ in range(5)],
+            "entry_time": datetime.now() + timedelta(hours=random.uniform(0, 24)),  # Use datetime for entry_time
+            "trip_time": round(random.uniform(1.0, 3.0), 1),  # Ensure trip_time is a float
+            "congestion": [random.randint(0, 5) for _ in range(5)],  # Ensure congestion is a list of integers
+            "speed": [float(random.randint(30, 60)) for _ in range(5)],  # Ensure speed is a list of floats
+            "locations": [[random.uniform(0, 100), random.uniform(0, 100)] for _ in range(2)],  # Ensure locations is a list of [lat, lon] pairs
         }
         for _ in range(num_trips)
     ]
-
-# Deduplicate schedules based on entry_time, trip_time, and speed
-def deduplicate_schedules(schedules):
-    unique_schedules = []
-    seen = set()
-
-    for schedule in schedules:
-        schedule_tuple = tuple(
-            (trip["entry_time"], trip["trip_time"], tuple(trip["speed"]))
-            for trip in schedule
-        )
-        if schedule_tuple not in seen:
-            seen.add(schedule_tuple)
-            unique_schedules.append(schedule)
-
-    return unique_schedules
-
-# Main function to run the hybrid algorithm
-def fetch_and_schedule_for_next_10_drivers_hybrid():
-    # Fetch schedules from both database sources
-    schedule_from_db, _ = get_schedule_data_from_db(db)
-    trips_from_db, _ = get_vehicle_data_from_db(db)
-
-    # Generate random trips
-    simulated_trips = generate_random_trips(10)
-
-    # Combine all schedules
-    combined_schedule =  simulated_trips
-
-    # Deduplicate the combined schedule
-    combined_schedule = deduplicate_schedules([combined_schedule])[0]
-
-    print(f"Fetched vehicle data: {combined_schedule}")
-    best_schedule = run_hybrid_algorithm(combined_schedule)
-    print(f"----Best schedule for next drivers using Hybrid (GA + SA): {best_schedule}")
-    return best_schedule
 
 def initialize_population(schedule):
     population_size = 50
@@ -227,21 +250,73 @@ def initialize_population(schedule):
         new_schedule = []
 
         for trip in schedule:
-            entry_time = trip["entry_time"]
+            # Adjust entry_time using timedelta
+            entry_time = trip["entry_time"] + timedelta(hours=random.uniform(-0.20, 0.20))
+            entry_time = max(trip["entry_time"] - timedelta(hours=0.20), min(trip["entry_time"] + timedelta(hours=0.20), entry_time))
 
-            # Ensure the entry time is unique
-            while round(entry_time, 1) in used_times:
-                entry_time += 0.1  # Adjust the entry time slightly to avoid duplicates
-                if entry_time > 16.5:
-                    entry_time = 5.5  # Wrap around if necessary
+            while entry_time in used_times:
+                entry_time += timedelta(hours=0.5)
+                if entry_time > trip["entry_time"] + timedelta(hours=16.5):
+                    entry_time = trip["entry_time"] - timedelta(hours=16.5)
 
-            used_times.add(round(entry_time, 1))
-            new_trip = dict(trip, entry_time=round(entry_time, 1))
-            new_schedule.append(new_trip)
+            used_times.add(entry_time)
+            new_trp = dict(trip, entry_time=entry_time)
+            new_schedule.append(new_trp)
 
         population.append(new_schedule)
     return population
 
-# Test the hybrid function
-best_schedule_hybrid = fetch_and_schedule_for_next_10_drivers_hybrid()
-print(f"Best Schedule (Hybrid): {best_schedule_hybrid}")
+# Main Functions
+def fetch_and_schedule_for_next_10_drivers_hybrid():
+    db_schedule, _ = get_vehicle_data_from_db(db)
+    simulated_trips = generate_random_trips(10)
+    # schedule = db_schedule + simulated_trips
+    schedule = simulated_trips
+
+    print(f"Fetched vehicle data: {schedule}")
+    best_schedule = run_hybrid_algorithm(schedule)
+    print(f"----Best schedule for next drivers using Hybrid (GA + SA): {best_schedule}")
+    return best_schedule
+
+def fetch_and_schedule_for_next_10_drivers_pso():
+    db_schedule, _ = get_vehicle_data_from_db(db)
+    simulated_trips = generate_random_trips(10)
+    # schedule = db_schedule + simulated_trips
+    schedule = simulated_trips
+
+    print(f"Fetched vehicle data: {schedule}")
+    best_schedule = run_pso(schedule)
+    print(f"----Best schedule for next drivers using PSO: {best_schedule}")
+    return best_schedule
+
+def compare_and_select_best_schedule():
+    # Run Hybrid Algorithm
+    best_schedule_hybrid = fetch_and_schedule_for_next_10_drivers_hybrid()
+    hybrid_fitness = fitness(best_schedule_hybrid)
+
+    # Run PSO Algorithm
+    best_schedule_pso = fetch_and_schedule_for_next_10_drivers_pso()
+    pso_fitness = fitness(best_schedule_pso)
+
+    # Compare fitness values
+    if hybrid_fitness < pso_fitness:
+        print("Hybrid Algorithm produced a better schedule.")
+        return best_schedule_hybrid
+    else:
+        print("PSO Algorithm produced a better schedule.")
+        return best_schedule_pso
+
+def fetch_and_schedule_for_next_10_drivers():
+    db_schedule, _ = get_vehicle_data_from_db(db)
+    simulated_trips = generate_random_trips(10)
+    # schedule = db_schedule + simulated_trips
+    schedule = simulated_trips
+
+    print(f"Fetched vehicle data: {schedule}")
+    best_schedule = compare_and_select_best_schedule()
+    print(f"----Best overall schedule: {best_schedule}")
+    return best_schedule
+
+# Test the function
+best_schedule = fetch_and_schedule_for_next_10_drivers()
+print(f"Best Schedule (Overall): {best_schedule}")
