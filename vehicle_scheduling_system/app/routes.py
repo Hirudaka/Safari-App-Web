@@ -47,15 +47,16 @@ def convert_objectid(obj):
     elif isinstance(obj, list):
         return [convert_objectid(i) for i in obj]
     elif isinstance(obj, ObjectId):  
-        return str(obj)  # Convert ObjectId to string
+        return str(obj) 
     return obj
+
+
 
 @main.route('/api/schedule', methods=['GET'])
 def get_schedule():
-    # Fetch vehicle data (schedule) from the database
     schedule, _ = get_vehicle_data_from_db(current_app.mongo_db)  
     print("schedule","\n",schedule)
-    optimized_schedule = run_genetic_algorithm(schedule)  # Pass the fetched schedule to the algorithm
+    optimized_schedule = run_genetic_algorithm(schedule)  
     optimized_schedule = fetch_and_schedule_for_next_10_drivers()
     #hybrid_schedule = compare_and_select_best_schedule()
     hybrid_schedule = fetch_and_schedule_for_next_10_drivers_hybrid()
@@ -77,8 +78,8 @@ def get_schedule():
     for item in hybrid_schedule:
         item["id"]=str(uuid.uuid4())
         item["booked"] = False
-        item["diverId"]=None
-        current_app.mongo_db.optimized_schedule.insert_one(item)  # Save the optimized schedule to MongoDB
+        item["driverId"]=None
+        current_app.mongo_db.optimized_schedule.insert_one(item)  
 
     # results = run_all_algorithms(schedule)
     # best_result = compare_results(results)
@@ -89,6 +90,8 @@ def get_schedule():
     # (best_result)
 
     return jsonify({'schedule': convert_objectid(hybrid_schedule)}), 200
+
+
 
 @main.route('/end_trip/<trip_id>', methods=['PUT'])
 def end_trip(trip_id):  
@@ -124,6 +127,8 @@ def end_trip(trip_id):
     )
 
     return jsonify({"message": "Trip ended", "end_time": end_time, "trip_time": trip_duration}), 200
+
+
 
 @main.route('/api/optimized_schedule', methods=['GET'])
 def get_optimized_schedule():
@@ -373,6 +378,7 @@ def update_trip_status(trip_id):
     }), 200
 
 
+
 @main.route('/api/trips', methods=['GET'])
 def get_trips():
     """
@@ -403,6 +409,8 @@ def get_trips():
         "message": "Trips fetched successfully.",
         "trips": trips
     }), 200
+
+
 
 @main.route('/register_driver', methods=['POST'])
 def register_driver():
@@ -464,41 +472,45 @@ def register_driver():
     
 @main.route('/get_drivers', methods=['GET'])
 def get_drivers():
-    drivers = Driver.objects.all() 
-    drivers_list = []
+    db = current_app.mongo_db['users']
+    drivers = list(db.find({"role": "driver"}))  # Filter by role "driver"
 
+    if not drivers:
+        return jsonify({"message": "No drivers found"}), 404
+
+    # Convert ObjectId to string for JSON serialization
     for driver in drivers:
-        drivers_list.append({
-            "driver_id": driver.driver_id,
-            "name": driver.name,
-            "email": driver.email,
-            "phone": driver.phone,
-            "vehicle_id": driver.vehicle_id,
-            "qr_code": driver.qr_code,
-            "qr_code_image": driver.qr_code_image, 
-        })
-    
-    return jsonify({"drivers": drivers_list}), 200
+        driver["_id"] = str(driver["_id"])
+
+    return jsonify({
+        "drivers": drivers
+    }), 200
 
 
 
 @main.route('/get_driver/<driver_id>', methods=['GET'])
 def get_driver_details(driver_id):
     
-    driver = Driver.objects(driver_id=driver_id).first()
+    try:
+        # Convert driver_id to ObjectId
+        driver_obj_id = ObjectId(driver_id)
+    except Exception as e:
+        return jsonify({"error": "Invalid driver ID format"}), 400
+
+    # Query the users collection
+    db = current_app.mongo_db['users']
+    driver = db.find_one({"_id": driver_obj_id, "role": "driver"})  # Ensure the role is "driver"
 
     if not driver:
         return jsonify({"error": "Driver not found"}), 404
-    
+
+    # Convert ObjectId to string for JSON serialization
+    driver["_id"] = str(driver["_id"])
+
     return jsonify({
-        "driver_id": driver.driver_id,
-            "name": driver.name,
-            "email": driver.email,
-            "phone": driver.phone,
-            "vehicle_id": driver.vehicle_id,
-            "qr_code": driver.qr_code,
-            "qr_code_image": driver.qr_code_image, 
+        "driver": driver
     }), 200
+
 
 
 @main.route('/api/trips/<trip_id>', methods=['GET'])
@@ -530,48 +542,43 @@ def get_trip_by_id(trip_id):
         print(f"Error occurred: {str(e)}")  
         return jsonify({'error': str(e)}), 500
     
+
+    
 @main.route('/api/book_schedule', methods=['POST'])
 def book_schedule():
     try:
         data = request.get_json()
         mainSchedule_id = data.get("mainSchedule_id")  # Main schedule document ID
-        driver_id = data.get("driver_id")  # Driver ID (likely a UUID)
+        driver_id = data.get("driver_id")  # Driver ID (now ObjectId)
 
         # Validate required fields
         if not mainSchedule_id or not driver_id:
             return jsonify({"error": "Schedule ID and Driver ID are required"}), 400
 
-        print(f"Booking schedule {mainSchedule_id} for driver {driver_id}")  # Debug log
-
-        # Convert mainSchedule_id to ObjectId
+        # Convert IDs to ObjectId
         try:
             mainSchedule_obj_id = ObjectId(mainSchedule_id)
+            driver_obj_id = ObjectId(driver_id)
         except Exception as e:
-            return jsonify({"error": "Invalid mainSchedule_id format"}), 400
+            return jsonify({"error": "Invalid ID format"}), 400
 
         # Get database reference
         db = current_app.mongo_db
         schedule_collection = db['optimized_schedule']
-        driver_collection = db['drivers']  # Ensure drivers are stored in a separate collection
+        users_collection = db['users']  # Use the users collection instead of Driver
 
         # Find the main schedule document
         schedule = schedule_collection.find_one({"_id": mainSchedule_obj_id})
         if not schedule:
             return jsonify({"error": "Schedule not found"}), 404
 
-        # Find the driver details
-        driver = Driver.objects(driver_id=driver_id).first()
-        print(f"Driver found: {driver}")  # Debug log
-        driver_name = driver.name  # Get the driver's name
-
+        # Find the driver details from the users collection
+        driver = users_collection.find_one({"_id": driver_obj_id, "role": "driver"})  # Ensure the role is "driver"
         if not driver:
             return jsonify({"error": "Driver not found"}), 404
 
-        print(f"Driver found: {driver_name}")
-
         # Check if the schedule is already booked
         if schedule.get("booked", False):
-            print("Schedule is already booked")
             return jsonify({"error": "Schedule is already booked"}), 400
 
         # Update the schedule to mark it as booked and associate the driver ID
@@ -580,8 +587,8 @@ def book_schedule():
             {
                 "$set": {
                     "booked": True,
-                    "driverId": driver_id,
-                    "driverName": driver_name
+                    "driverId": driver_obj_id,  # Use ObjectId
+                    "driverName": driver.get("name")  # Get the driver's name from the users collection
                 }
             }
         )
