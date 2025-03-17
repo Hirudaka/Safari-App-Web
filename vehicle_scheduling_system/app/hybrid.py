@@ -13,6 +13,27 @@ inertia_weight = 0.5
 cognitive_weight = 1.5
 social_weight = 1.5
 
+def adjust_entry_time(entry_time):
+    """
+    Adjusts the entry_time to fall within the 5 AM to 6 PM window for tomorrow.
+    """
+    # Get tomorrow's date
+    tomorrow = datetime.now() + timedelta(days=1)
+    # Set the start time to 5 AM tomorrow
+    start_time = tomorrow.replace(hour=5, minute=0, second=0, microsecond=0)
+    # Set the end time to 6 PM tomorrow
+    end_time = tomorrow.replace(hour=18, minute=0, second=0, microsecond=0)
+
+    # If the entry_time is before 5 AM, set it to 5 AM
+    if entry_time < start_time:
+        return start_time
+    # If the entry_time is after 6 PM, set it to 5 AM the next day
+    elif entry_time > end_time:
+        return start_time + timedelta(days=1)
+    # Otherwise, keep the entry_time as is
+    else:
+        return entry_time
+
 # Common Functions
 def calculate_diversity(population):
     # Extract entry times and convert them to timestamps (seconds since epoch)
@@ -127,8 +148,10 @@ def mutate(schedule, mutation_rate):
                 for speed in vehicle["speed"]
             ]
 
-            # Mutate entry_time using timedelta
-            vehicle["entry_time"] += timedelta(hours=random.uniform(-0.20, 0.20))
+            # Mutate entry_time using timedelta, ensuring it stays within 5 AM to 6 PM
+            new_entry_time = vehicle["entry_time"] + timedelta(hours=random.uniform(-0.20, 0.20))
+            new_entry_time = adjust_entry_time(new_entry_time)  # Ensure it's within the window
+            vehicle["entry_time"] = new_entry_time
     return schedule
 
 def run_hybrid_algorithm(schedule):
@@ -219,7 +242,7 @@ def get_vehicle_data_from_db(db):
     trips = db.trips.find()
     schedule = [
         {
-            "entry_time": trip["entry_time"],  # Ensure this is already a datetime object in the database
+            "entry_time": adjust_entry_time(trip["entry_time"]),  # Adjust entry_time for tomorrow
             "trip_time": float(trip["trip_time"]),  # Ensure trip_time is a float
             "congestion": [int(c) for c in trip.get("congestion", [0])],  # Ensure congestion is a list of integers
             "speed": [float(s) for s in trip.get("speed", [0])],  # Ensure speed is a list of floats
@@ -229,10 +252,25 @@ def get_vehicle_data_from_db(db):
     ]
     return schedule, len(schedule)
 
+def get_optimizedSchedule_data_from_db(db):
+    trips = db.optimized_schedule.find()
+    schedule = [
+        {
+            "entry_time": adjust_entry_time(trip["entry_time"]),  # Adjust entry_time for tomorrow
+            "trip_time": float(trip["trip_time"]),  # Ensure trip_time is a float
+            "congestion": [int(c) for c in trip.get("congestion", [0])],  # Ensure congestion is a list of integers
+            "speed": [float(s) for s in trip.get("speed", [0])],  # Ensure speed is a list of floats
+            "locations": trip.get("locations", []),  # Ensure locations is a list of [lat, lon] pairs
+        }
+        for trip in trips
+    ]
+    return schedule, len(schedule)
+
+
 def generate_random_trips(num_trips):
     return [
         {
-            "entry_time": datetime.now() + timedelta(hours=random.uniform(0, 24)),  # Use datetime for entry_time
+            "entry_time": adjust_entry_time(datetime.now() + timedelta(hours=random.uniform(0, 24))),  # Generate entry_time for tomorrow
             "trip_time": round(random.uniform(1.0, 3.0), 1),  # Ensure trip_time is a float
             "congestion": [random.randint(0, 5) for _ in range(5)],  # Ensure congestion is a list of integers
             "speed": [float(random.randint(30, 60)) for _ in range(5)],  # Ensure speed is a list of floats
@@ -250,14 +288,15 @@ def initialize_population(schedule):
         new_schedule = []
 
         for trip in schedule:
-            # Adjust entry_time using timedelta
+            # Adjust entry_time using timedelta, ensuring it stays within 5 AM to 6 PM
             entry_time = trip["entry_time"] + timedelta(hours=random.uniform(-0.20, 0.20))
-            entry_time = max(trip["entry_time"] - timedelta(hours=0.20), min(trip["entry_time"] + timedelta(hours=0.20), entry_time))
+            entry_time = max(trip["entry_time"].replace(hour=5, minute=0, second=0, microsecond=0), 
+                             min(trip["entry_time"].replace(hour=18, minute=0, second=0, microsecond=0), entry_time))
 
             while entry_time in used_times:
                 entry_time += timedelta(hours=0.5)
-                if entry_time > trip["entry_time"] + timedelta(hours=16.5):
-                    entry_time = trip["entry_time"] - timedelta(hours=16.5)
+                if entry_time > trip["entry_time"].replace(hour=18, minute=0, second=0, microsecond=0):
+                    entry_time = trip["entry_time"].replace(hour=5, minute=0, second=0, microsecond=0)
 
             used_times.add(entry_time)
             new_trp = dict(trip, entry_time=entry_time)
