@@ -732,3 +732,44 @@ def delete_user():
     except Exception as e:
         print(f"Error occurred: {str(e)}")  # Debug log
         return jsonify({'error': str(e)}), 500
+    
+
+@main.route('/api/get_driver_by_qr/<qr_code>', methods=['GET'])
+def get_driver_by_qr(qr_code):
+    try:
+
+        print("qr",qr_code)
+        # Validate the QR code
+        if not qr_code:
+            return jsonify({"error": "QR code is required"}), 400
+
+        # Query the users collection for the driver with the given QR code
+        db = current_app.mongo_db['users']
+        driver = db.find_one({"qr_code": qr_code, "role": "driver"})  # Ensure the role is "driver"
+
+        # If driver not found, return an error
+        if not driver:
+            return jsonify({"error": "Driver not found"}), 404
+
+        # Convert ObjectId to string for JSON serialization
+        driver["_id"] = str(driver["_id"])
+
+        print("driver",driver)
+        # Return the driver details
+        return jsonify({
+            "driver": {
+                "_id": driver["_id"],
+                "email": driver["email"],
+                "name": driver["name"],
+                "phone": driver["phone"],
+                "vehicle_id": driver["vehicle_id"],
+                "qr_code": driver["qr_code"],
+                "qr_code_image": driver["qr_code_image"],
+                "created_at": driver["created_at"],
+                "updated_at": driver["updated_at"]
+            }
+        }), 200
+
+    except Exception as e:
+        print(f"Error in get_driver_by_qr: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
