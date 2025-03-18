@@ -644,6 +644,9 @@ def register():
     try:
         data = request.json
         email = data.get('email')
+        name = data.get('name')
+        NIC = data.get('NIC')
+        phone = data.get('phone')
         password = data.get('password')
         role = data.get('role')
             
@@ -653,8 +656,12 @@ def register():
         user = {
                 
                 'email': email,
+                'name': name,
+                'NIC': NIC,
+                'phone': phone,
                 'password': password,
                 'role': role,
+
                 
             }
         db = current_app.mongo_db['users']
