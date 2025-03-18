@@ -50,7 +50,7 @@ const _nav = [
       },
       {
         component: CNavItem,
-        name: 'Register',
+        name: 'Register Driver',
         to: '/registerDriver',
       },
       {

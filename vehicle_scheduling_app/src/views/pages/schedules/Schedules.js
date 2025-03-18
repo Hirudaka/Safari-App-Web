@@ -138,14 +138,32 @@ const Schedules = () => {
                     const avgSpeed = calculateAverage(trip.speed)
 
                     return (
-                      <CTableRow key={index}>
-                        <CTableDataCell>{index + 1}</CTableDataCell>
-                        <CTableDataCell>{entryTimeFormatted}</CTableDataCell>
-                        <CTableDataCell>{avgCongestion}</CTableDataCell>
-                        <CTableDataCell>{tripTimeFormatted}</CTableDataCell>
-                        <CTableDataCell>{avgSpeed} km/h</CTableDataCell>
-                        <CTableDataCell>{exitTimeFormatted}</CTableDataCell>
-                        <CTableDataCell>{trip.driverName}</CTableDataCell>
+                      <CTableRow
+                        key={index}
+                        className="pop-in-row"
+                        style={{ animationDelay: `${0.1 * index}s` }}
+                      >
+                        <CTableDataCell>
+                          <CCard align="middle">{index + 1}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{entryTimeFormatted}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{avgCongestion}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{tripTimeFormatted}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{avgSpeed} km/h</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{exitTimeFormatted}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{trip.driverName}</CCard>
+                        </CTableDataCell>
                       </CTableRow>
                     )
                   })}
