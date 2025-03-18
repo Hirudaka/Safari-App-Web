@@ -153,7 +153,7 @@ def get_vehicle_data_from_db(db):
     return schedule, len(schedule)
 
 def get_optimizedSchedule_data_from_db(db):
-    trips = db.optimized_schedule.find()
+    optimized_schedules = db.optimized_schedule.find()
     schedule = [
         {
             "entry_time": adjust_entry_time(trip["entry_time"]),  # Adjust entry_time for tomorrow
@@ -162,7 +162,7 @@ def get_optimizedSchedule_data_from_db(db):
             "speed": [float(s) for s in trip.get("speed", [0])],  # Ensure speed is a list of floats
             "locations": trip.get("locations", []),  # Ensure locations is a list of [lat, lon] pairs
         }
-        for trip in trips
+        for trip in optimized_schedules
     ]
     return schedule, len(schedule)
 

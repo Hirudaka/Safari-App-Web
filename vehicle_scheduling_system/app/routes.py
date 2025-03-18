@@ -59,7 +59,8 @@ def get_schedule():
     optimized_schedule = run_genetic_algorithm(schedule)  
     optimized_schedule = fetch_and_schedule_for_next_10_drivers()
     #hybrid_schedule = compare_and_select_best_schedule()
-    hybrid_schedule = fetch_and_schedule_for_next_10_drivers_hybrid()
+    db = current_app.mongo_db['optimized_schedule']
+    hybrid_schedule = fetch_and_schedule_for_next_10_drivers_hybrid(db)
     # problem = SafariSchedulingProblem(schedule)
 
     # # Define the NSGA-II algorithm

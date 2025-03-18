@@ -253,7 +253,7 @@ def get_vehicle_data_from_db(db):
     return schedule, len(schedule)
 
 def get_optimizedSchedule_data_from_db(db):
-    trips = db.optimized_schedule.find()
+    optimized_schedules = db.optimized_schedule.find()
     schedule = [
         {
             "entry_time": adjust_entry_time(trip["entry_time"]),  # Adjust entry_time for tomorrow
@@ -262,9 +262,16 @@ def get_optimizedSchedule_data_from_db(db):
             "speed": [float(s) for s in trip.get("speed", [0])],  # Ensure speed is a list of floats
             "locations": trip.get("locations", []),  # Ensure locations is a list of [lat, lon] pairs
         }
-        for trip in trips
+        for trip in optimized_schedules
     ]
     return schedule, len(schedule)
+
+def get_optimized_entry_times(db):
+    """
+    Fetch all entry times from the optimized_schedule table.
+    """
+    optimized_schedules = db.optimized_schedule.find()
+    return {schedule["entry_time"] for schedule in optimized_schedules}
 
 
 def generate_random_trips(num_trips):
@@ -278,6 +285,17 @@ def generate_random_trips(num_trips):
         }
         for _ in range(num_trips)
     ]
+
+def filter_new_schedules(new_schedules, optimized_entry_times):
+    """
+    Filter out new schedules that have entry times already present in the optimized_schedule table.
+    """
+    filtered_schedules = []
+    for schedule in new_schedules:
+        if schedule["entry_time"] not in optimized_entry_times:
+            filtered_schedules.append(schedule)
+    return filtered_schedules
+
 
 def initialize_population(schedule):
     population_size = 50
@@ -306,35 +324,48 @@ def initialize_population(schedule):
     return population
 
 # Main Functions
-def fetch_and_schedule_for_next_10_drivers_hybrid():
+def fetch_and_schedule_for_next_10_drivers_hybrid(db):
+    # Fetch existing schedules from the database
+    db_schedule, _ = get_vehicle_data_from_db(db)
+
+    # Fetch entry times from optimized_schedule table
+    optimized_entry_times = get_optimized_entry_times(db)
+
+    # Generate random trips (old schedules)
+    simulated_trips = generate_random_trips(10)
+
+    # Combine existing schedules and simulated trips
+    schedule = db_schedule + simulated_trips
+
+    # Run the hybrid algorithm to generate new schedules
+    new_schedules = run_hybrid_algorithm(schedule)
+
+    # Filter out schedules with duplicate entry times
+    filtered_schedules = filter_new_schedules(new_schedules, optimized_entry_times)
+
+    print(f"Filtered schedules (no duplicates): {filtered_schedules}")
+    return filtered_schedules
+
+def fetch_and_schedule_for_next_10_drivers_pso(db):
     db_schedule, _ = get_vehicle_data_from_db(db)
     simulated_trips = generate_random_trips(10)
-    # schedule = db_schedule + simulated_trips
-    schedule = simulated_trips
-
-    print(f"Fetched vehicle data: {schedule}")
-    best_schedule = run_hybrid_algorithm(schedule)
-    print(f"----Best schedule for next drivers using Hybrid (GA + SA): {best_schedule}")
-    return best_schedule
-
-def fetch_and_schedule_for_next_10_drivers_pso():
-    db_schedule, _ = get_vehicle_data_from_db(db)
-    simulated_trips = generate_random_trips(10)
+    optimized_entry_times = get_optimized_entry_times(db)
     # schedule = db_schedule + simulated_trips
     schedule = simulated_trips
 
     print(f"Fetched vehicle data: {schedule}")
     best_schedule = run_pso(schedule)
     print(f"----Best schedule for next drivers using PSO: {best_schedule}")
+    filtered_schedules = filter_new_schedules(best_schedule, optimized_entry_times)
     return best_schedule
 
 def compare_and_select_best_schedule():
     # Run Hybrid Algorithm
-    best_schedule_hybrid = fetch_and_schedule_for_next_10_drivers_hybrid()
+    best_schedule_hybrid = fetch_and_schedule_for_next_10_drivers_hybrid(db)
     hybrid_fitness = fitness(best_schedule_hybrid)
 
     # Run PSO Algorithm
-    best_schedule_pso = fetch_and_schedule_for_next_10_drivers_pso()
+    best_schedule_pso = fetch_and_schedule_for_next_10_drivers_pso(db)
     pso_fitness = fitness(best_schedule_pso)
 
     # Compare fitness values
