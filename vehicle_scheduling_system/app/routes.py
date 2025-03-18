@@ -242,9 +242,20 @@ def start_trip():
 
     if not all(isinstance(loc, list) and len(loc) == 2 for loc in locations):
         return jsonify({"error": "Locations must be a list of [latitude, longitude] pairs"}), 400
+    
+    try:
+        # Convert driver_id to ObjectId
+        driver_obj_id = ObjectId(driver_id)
+    except Exception as e:
+        return jsonify({"error": "Invalid driver ID format"}), 400
+    
+    db = current_app.mongo_db['users']
+    driver = db.find_one({"_id": driver_obj_id, "role": "driver"})  # Ensure the role is "driver"
+
 
     trip_data = {
         "driver_id": driver_id,
+        "driver_name": driver["name"],
         "vehicle_id": vehicle_id,
         "entry_time": entry_time,
         "trip_time": trip_time_seconds,  # Store as seconds

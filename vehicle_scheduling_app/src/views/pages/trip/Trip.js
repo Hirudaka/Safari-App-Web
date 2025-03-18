@@ -141,7 +141,7 @@ const Trip = () => {
                       <td>
                         <strong>Driver</strong>
                       </td>
-                      <td>{driverLoading ? 'Loading driver...' : getDriverName(trip.driver_id)}</td>
+                      <td>{driverLoading ? 'Loading driver...' : trip.driver_name}</td>
                     </tr>
                     <tr>
                       <td>
