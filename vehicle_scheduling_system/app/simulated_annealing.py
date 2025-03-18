@@ -12,6 +12,26 @@ generations = 500
 max_vehicles_in_safari = 100 
 MUTATION_RATE = 0.1
 
+def adjust_entry_time(entry_time):
+    """
+    Adjusts the entry_time to fall within the 5 AM to 6 PM window for tomorrow.
+    """
+    # Get tomorrow's date
+    tomorrow = datetime.now() + timedelta(days=1)
+    # Set the start time to 5 AM tomorrow
+    start_time = tomorrow.replace(hour=5, minute=0, second=0, microsecond=0)
+    # Set the end time to 6 PM tomorrow
+    end_time = tomorrow.replace(hour=18, minute=0, second=0, microsecond=0)
+
+    # If the entry_time is before 5 AM, set it to 5 AM
+    if entry_time < start_time:
+        return start_time
+    # If the entry_time is after 6 PM, set it to 5 AM the next day
+    elif entry_time > end_time:
+        return start_time + timedelta(days=1)
+    # Otherwise, keep the entry_time as is
+    else:
+        return entry_time
 
 def dynamic_weights(generation):
     return {
@@ -63,28 +83,24 @@ def fitness(schedule, generation=0):
     )
 
 def mutate(schedule, mutation_rate):
-    used_times = {vehicle["entry_time"] for vehicle in schedule}
-
     for vehicle in schedule:
         if random.random() < mutation_rate:
-            original_time = vehicle["entry_time"]
-            # Add a random timedelta to the entry_time
-            new_time = original_time + timedelta(hours=random.uniform(-1, 1))
-            new_time = max(original_time - timedelta(hours=0.20), min(original_time + timedelta(hours=0.20), new_time))
+            # Ensure congestion is a list of integers
+            if isinstance(vehicle["congestion"], list):
+                vehicle["congestion"] = [max(0, min(5, c + random.randint(-1, 1))) for c in vehicle["congestion"]]
+            else:
+                vehicle["congestion"] = [max(0, min(5, vehicle["congestion"] + random.randint(-1, 1)))]
 
-            while new_time in used_times:
-                new_time += timedelta(hours=0.5)
-                if new_time > original_time + timedelta(hours=16.5):
-                    new_time = original_time - timedelta(hours=16.5)
-
-            used_times.add(new_time)
-
-            vehicle["congestion"] = [max(0, min(5, c + random.randint(-1, 1))) for c in vehicle["congestion"]]
+            # Mutate speed (ensure it's a list of floats)
             vehicle["speed"] = [
                 max(30, min(60, speed + random.randint(-5, 5)))
                 for speed in vehicle["speed"]
             ]
-            vehicle["entry_time"] = new_time
+
+            # Mutate entry_time using timedelta, ensuring it stays within 5 AM to 6 PM
+            new_entry_time = vehicle["entry_time"] + timedelta(hours=random.uniform(-0.20, 0.20))
+            new_entry_time = adjust_entry_time(new_entry_time)  # Ensure it's within the window
+            vehicle["entry_time"] = new_entry_time
     return schedule
 
 # Simulated Annealing Function
@@ -101,7 +117,7 @@ def simulated_annealing(schedule):
 
     while temperature > min_temperature:
         # Generate a neighbor solution by perturbing the current schedule
-        neighbor_schedule = mutate(current_schedule.copy(), mutation_rate=0.1)
+        neighbor_schedule = mutate(current_schedule.copy(), mutation_rate=MUTATION_RATE)
         neighbor_fitness = fitness(neighbor_schedule)
 
         # Calculate the change in fitness
@@ -126,7 +142,7 @@ def get_vehicle_data_from_db(db):
     trips = db.trips.find()
     schedule = [
         {
-            "entry_time": trip["entry_time"],  # Ensure this is a datetime object
+            "entry_time": adjust_entry_time(trip["entry_time"]),  # Adjust entry_time for tomorrow
             "trip_time": float(trip["trip_time"]),  # Ensure trip_time is a float
             "congestion": [int(c) for c in trip.get("congestion", [0])],  # Ensure congestion is a list of integers
             "speed": [float(s) for s in trip.get("speed", [0])],  # Ensure speed is a list of floats
@@ -136,11 +152,24 @@ def get_vehicle_data_from_db(db):
     ]
     return schedule, len(schedule)
 
+def get_optimizedSchedule_data_from_db(db):
+    optimized_schedules = db.optimized_schedule.find()
+    schedule = [
+        {
+            "entry_time": adjust_entry_time(trip["entry_time"]),  # Adjust entry_time for tomorrow
+            "trip_time": float(trip["trip_time"]),  # Ensure trip_time is a float
+            "congestion": [int(c) for c in trip.get("congestion", [0])],  # Ensure congestion is a list of integers
+            "speed": [float(s) for s in trip.get("speed", [0])],  # Ensure speed is a list of floats
+            "locations": trip.get("locations", []),  # Ensure locations is a list of [lat, lon] pairs
+        }
+        for trip in optimized_schedules
+    ]
+    return schedule, len(schedule)
+
 def generate_random_trips(num_trips):
-    now = datetime.now()
     return [
         {
-            "entry_time": now + timedelta(hours=random.uniform(0, 24)),  # Random datetime within the next 24 hours
+            "entry_time": adjust_entry_time(datetime.now() + timedelta(hours=random.uniform(0, 24))),  # Generate entry_time for tomorrow
             "trip_time": round(random.uniform(1.0, 3.0), 1),  # Ensure trip_time is a float
             "congestion": [random.randint(0, 5) for _ in range(5)],  # Ensure congestion is a list of integers
             "speed": [float(random.randint(30, 60)) for _ in range(5)],  # Ensure speed is a list of floats
