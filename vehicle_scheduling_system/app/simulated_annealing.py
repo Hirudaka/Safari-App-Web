@@ -177,6 +177,7 @@ def generate_random_trips(num_trips):
         }
         for _ in range(num_trips)
     ]
+    
 
 # Main function to run Simulated Annealing
 def fetch_and_schedule_for_next_10_drivers_sa():

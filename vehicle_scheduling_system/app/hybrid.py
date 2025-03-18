@@ -133,30 +133,38 @@ def crossover(parent1, parent2):
             child2.append(parent1[i])
     return child1, child2
 
-def mutate(schedule, mutation_rate):
+def mutate(schedule, mutation_rate, existing_entry_times):
     for vehicle in schedule:
         if random.random() < mutation_rate:
-            # Ensure congestion is a list of integers
+            while True:
+                # Mutate entry_time using timedelta
+                new_entry_time = vehicle["entry_time"] + timedelta(hours=random.uniform(-0.20, 0.20))
+                new_entry_time = adjust_entry_time(new_entry_time)  # Ensure it's within the window
+
+                # Check if the new entry time is unique
+                if new_entry_time not in existing_entry_times:
+                    existing_entry_times.add(new_entry_time)
+                    vehicle["entry_time"] = new_entry_time
+                    break
+
+            # Mutate other attributes (congestion, speed, etc.)
             if isinstance(vehicle["congestion"], list):
                 vehicle["congestion"] = [max(0, min(5, c + random.randint(-1, 1))) for c in vehicle["congestion"]]
             else:
                 vehicle["congestion"] = [max(0, min(5, vehicle["congestion"] + random.randint(-1, 1)))]
 
-            # Mutate speed (ensure it's a list of floats)
             vehicle["speed"] = [
                 max(30, min(60, speed + random.randint(-5, 5)))
                 for speed in vehicle["speed"]
             ]
-
-            # Mutate entry_time using timedelta, ensuring it stays within 5 AM to 6 PM
-            new_entry_time = vehicle["entry_time"] + timedelta(hours=random.uniform(-0.20, 0.20))
-            new_entry_time = adjust_entry_time(new_entry_time)  # Ensure it's within the window
-            vehicle["entry_time"] = new_entry_time
     return schedule
 
 def run_hybrid_algorithm(schedule):
     population = initialize_population(schedule)
     population = sorted(population, key=lambda ind: fitness(ind))
+
+    # Track entry times in the new schedules
+    existing_entry_times = {vehicle["entry_time"] for vehicle in schedule}
 
     for generation in range(generations):
         diversity = calculate_diversity(population)
@@ -167,7 +175,9 @@ def run_hybrid_algorithm(schedule):
         while len(offspring) < len(population):
             parent1, parent2 = random.sample(selected, 2)
             child1, child2 = crossover(parent1, parent2)
-            offspring.extend([mutate(child1, mutation_rate), mutate(child2, mutation_rate)])
+            child1 = mutate(child1, mutation_rate, existing_entry_times)
+            child2 = mutate(child2, mutation_rate, existing_entry_times)
+            offspring.extend([child1, child2])
 
         population = sorted(offspring, key=fitness)
         population = remove_duplicates(population)
@@ -296,6 +306,19 @@ def filter_new_schedules(new_schedules, optimized_entry_times):
             filtered_schedules.append(schedule)
     return filtered_schedules
 
+def filter_duplicate_entry_times(schedules):
+    """
+    Filter out schedules with duplicate entry times.
+    """
+    unique_schedules = []
+    existing_entry_times = set()
+
+    for schedule in schedules:
+        entry_time = schedule["entry_time"]
+        if entry_time not in existing_entry_times:
+            existing_entry_times.add(entry_time)
+            unique_schedules.append(schedule)
+    return unique_schedules
 
 def initialize_population(schedule):
     population_size = 50
@@ -342,6 +365,7 @@ def fetch_and_schedule_for_next_10_drivers_hybrid(db):
 
     # Filter out schedules with duplicate entry times
     filtered_schedules = filter_new_schedules(new_schedules, optimized_entry_times)
+    filtered_schedules =  filter_duplicate_entry_times(filtered_schedules)
 
     print(f"Filtered schedules (no duplicates): {filtered_schedules}")
     return filtered_schedules
@@ -357,7 +381,7 @@ def fetch_and_schedule_for_next_10_drivers_pso(db):
     best_schedule = run_pso(schedule)
     print(f"----Best schedule for next drivers using PSO: {best_schedule}")
     filtered_schedules = filter_new_schedules(best_schedule, optimized_entry_times)
-    return best_schedule
+    return filtered_schedules
 
 def compare_and_select_best_schedule():
     # Run Hybrid Algorithm
