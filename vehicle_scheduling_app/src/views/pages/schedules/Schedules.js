@@ -14,12 +14,12 @@ import {
   CTableRow,
 } from '@coreui/react'
 
-// Utility function to format time in AM/PM
+// Utility function to format decimal hours into AM/PM time
 const formatTime = (decimalHours) => {
+  if (decimalHours == null) return 'N/A'
   const totalMinutes = Math.round(decimalHours * 60)
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-
   const period = hours >= 12 ? 'PM' : 'AM'
   const formattedHours = hours % 12 || 12
   const formattedMinutes = minutes.toString().padStart(2, '0')
@@ -31,7 +31,6 @@ const Schedules = () => {
   const [schedules, setSchedules] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch optimized schedules from API
   const fetchSchedules = async () => {
     setLoading(true)
     try {
@@ -39,7 +38,6 @@ const Schedules = () => {
       const data = await response.json()
       if (data.optimized_schedule && Array.isArray(data.optimized_schedule)) {
         setSchedules(data.optimized_schedule)
-        console.log(data.optimized_schedule)
       } else {
         setSchedules([])
       }
@@ -69,6 +67,25 @@ const Schedules = () => {
     }
   }
 
+  // Function to parse the entry_time string into decimal hours
+  const parseEntryTime = (entryTimeString) => {
+    const date = new Date(entryTimeString) // Convert string to Date object
+    if (isNaN(date.getTime())) {
+      return null // Invalid date
+    }
+    // Extract hours and minutes in UTC (GMT) to avoid timezone conversion
+    const hours = date.getUTCHours()
+    const minutes = date.getUTCMinutes()
+    return hours + minutes / 60 // Convert to decimal hours
+  }
+
+  // Function to calculate the average of an array
+  const calculateAverage = (arr) => {
+    if (!Array.isArray(arr) || arr.length === 0) return 'N/A'
+    const sum = arr.reduce((acc, val) => acc + val, 0)
+    return (sum / arr.length).toFixed(2) // Round to 2 decimal places
+  }
+
   return (
     <CRow>
       <CCol lg={12} md={10} sm={12} className="mx-auto">
@@ -93,30 +110,60 @@ const Schedules = () => {
                   <CTableRow>
                     <CTableHeaderCell>#</CTableHeaderCell>
                     <CTableHeaderCell>Entry Time</CTableHeaderCell>
-                    <CTableHeaderCell>Traffic Level</CTableHeaderCell>
+                    <CTableHeaderCell>Avg Traffic Level</CTableHeaderCell>
                     <CTableHeaderCell>Trip Time</CTableHeaderCell>
-                    <CTableHeaderCell>Speed (km/h)</CTableHeaderCell>
+                    <CTableHeaderCell>Avg Speed</CTableHeaderCell>
                     <CTableHeaderCell>Estimated Exit Time</CTableHeaderCell>
                     <CTableHeaderCell>Booked Driver</CTableHeaderCell>
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
                   {schedules.map((trip, index) => {
-                    const entryTimeFormatted = formatTime(trip.entry_time)
-                    const tripTimeFormatted = `${Math.floor(trip.trip_time)}h ${Math.round(
-                      (trip.trip_time % 1) * 60,
-                    )}m`
-                    const exitTimeFormatted = formatTime(trip.entry_time + trip.trip_time)
+                    const entryTimeDecimal = parseEntryTime(trip.entry_time)
+                    const entryTimeFormatted =
+                      entryTimeDecimal !== null ? formatTime(entryTimeDecimal) : 'Invalid Time'
+
+                    const tripTimeFormatted = trip.trip_time
+                      ? `${Math.floor(trip.trip_time)}h ${Math.round((trip.trip_time % 1) * 60)}m`
+                      : 'N/A'
+
+                    const exitTimeDecimal =
+                      entryTimeDecimal !== null && trip.trip_time
+                        ? entryTimeDecimal + trip.trip_time
+                        : null
+                    const exitTimeFormatted =
+                      exitTimeDecimal !== null ? formatTime(exitTimeDecimal) : 'N/A'
+
+                    const avgCongestion = calculateAverage(trip.congestion)
+                    const avgSpeed = calculateAverage(trip.speed)
 
                     return (
-                      <CTableRow key={index}>
-                        <CTableDataCell>{index + 1}</CTableDataCell>
-                        <CTableDataCell>{entryTimeFormatted}</CTableDataCell>
-                        <CTableDataCell>{trip.congestion}</CTableDataCell>
-                        <CTableDataCell>{tripTimeFormatted}</CTableDataCell>
-                        <CTableDataCell>{trip.speed.join(' - ')} km/h</CTableDataCell>
-                        <CTableDataCell>{exitTimeFormatted}</CTableDataCell>
-                        <CTableDataCell>{trip.driverName}</CTableDataCell>
+                      <CTableRow
+                        key={index}
+                        className="pop-in-row"
+                        style={{ animationDelay: `${0.1 * index}s` }}
+                      >
+                        <CTableDataCell>
+                          <CCard align="middle">{index + 1}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{entryTimeFormatted}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{avgCongestion}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{tripTimeFormatted}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{avgSpeed} km/h</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{exitTimeFormatted}</CCard>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <CCard align="middle">{trip.driverName}</CCard>
+                        </CTableDataCell>
                       </CTableRow>
                     )
                   })}

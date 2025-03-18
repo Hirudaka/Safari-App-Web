@@ -33,33 +33,45 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(null)
   const navigate = useNavigate()
+  const refreshIntervalRef = useRef(null)
 
-  useEffect(() => {
-    async function fetchTrips() {
-      try {
-        const response = await fetch('http://127.0.0.1:5001/api/trips')
-        const data = await response.json()
-        setTrips(data.trips)
+  // Function to fetch trips data
+  const fetchTrips = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:5001/api/trips')
+      const data = await response.json()
+      console.log('refreshing')
+      setTrips(data.trips)
+      // Only update filtered trips if no search term is active
+      if (!searchTerm) {
         setFilteredTrips(data.trips)
-      } catch (error) {
-        console.error('Error fetching trips:', error)
-      } finally {
-        setLoading(false)
+      } else {
+        // Re-apply the search filter with the new data
+        const filtered = data.trips.filter((trip) =>
+          trip.vehicle_id?.toLowerCase().includes(searchTerm.toLowerCase()),
+        )
+        setFilteredTrips(filtered)
       }
+    } catch (error) {
+      console.error('Error fetching trips:', error)
+    } finally {
+      setLoading(false)
     }
+  }
 
-    async function fetchDrivers() {
-      try {
-        const response = await fetch('http://127.0.0.1:5001/get_drivers')
-        const data = await response.json()
-        setDrivers(data.drivers)
-      } catch (error) {
-        console.error('Error fetching drivers:', error)
-      }
-    }
-
+  // Initial data fetch and set up refresh interval
+  useEffect(() => {
     fetchTrips()
-    fetchDrivers()
+
+    // Set up auto-refresh interval (every 3 seconds)
+    refreshIntervalRef.current = setInterval(fetchTrips, 3000)
+
+    // Clean up the interval when component unmounts
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current)
+      }
+    }
   }, [])
 
   const handleViewClick = (tripId) => {
@@ -291,7 +303,8 @@ const Dashboard = () => {
           ),
         )
         alert('Trip ended successfully')
-        window.location.reload()
+        // Fetch fresh data instead of reloading the page
+        fetchTrips()
       } else {
         console.error('Failed to end trip')
       }
@@ -339,7 +352,12 @@ const Dashboard = () => {
       <CRow>
         <CCol xs>
           <CCard className="mb-4">
-            <CCardHeader>Traffic {' & '} Trips</CCardHeader>
+            <CCardHeader>
+              Traffic {' & '} Trips
+              <span className="small text-body-secondary ms-2">
+                (Auto-refreshing every 3 seconds)
+              </span>
+            </CCardHeader>
             <CCardBody>
               <CCol sm={4}>
                 <input
@@ -365,7 +383,13 @@ const Dashboard = () => {
                   </CTableRow>
                 </CTableHead>
                 <CTableBody>
-                  {filteredTrips && filteredTrips.length > 0 ? (
+                  {loading ? (
+                    <CTableRow>
+                      <CTableDataCell colSpan="8" className="text-center">
+                        Loading...
+                      </CTableDataCell>
+                    </CTableRow>
+                  ) : filteredTrips && filteredTrips.length > 0 ? (
                     filteredTrips.map((trip) => (
                       <CTableRow key={trip._id}>
                         <CTableDataCell>
@@ -375,9 +399,7 @@ const Dashboard = () => {
                             status={getStatusColor(trip.status)}
                           />
                         </CTableDataCell>
-                        <CTableDataCell>
-                          {getDriverName(trip.driver_id) || 'Unknown Driver'}
-                        </CTableDataCell>
+                        <CTableDataCell>{trip.driver_name || 'Unknown Driver'}</CTableDataCell>
                         <CTableDataCell>{trip.vehicle_id || 'N/A'}</CTableDataCell>
                         <CTableDataCell>
                           <span className={`badge bg-${getStatusColor(trip.status)}`}>
@@ -415,7 +437,7 @@ const Dashboard = () => {
                     ))
                   ) : (
                     <CTableRow>
-                      <CTableDataCell colSpan="7" className="text-center">
+                      <CTableDataCell colSpan="8" className="text-center">
                         No results found
                       </CTableDataCell>
                     </CTableRow>
