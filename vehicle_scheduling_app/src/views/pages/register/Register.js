@@ -111,6 +111,7 @@ const Register = () => {
                   <CInputGroup className="mb-3">
                     <CInputGroupText>Password</CInputGroupText>
                     <CFormInput
+                      type="password"
                       placeholder="Password"
                       name="password"
                       value={formData.password}
