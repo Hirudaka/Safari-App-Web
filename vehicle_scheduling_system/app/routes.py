@@ -808,3 +808,56 @@ def get_driver_by_qr(qr_code):
     except Exception as e:
         print(f"Error in get_driver_by_qr: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
+
+
+
+@main.route('/api/schedules/driver/<driver_id>', methods=['GET'])
+def get_schedules_by_driver(driver_id):
+    try:
+        # Validate the driver_id
+        if not driver_id:
+            return jsonify({"error": "Driver ID is required"}), 400
+
+        # Convert driver_id to ObjectId
+        try:
+            driver_obj_id = ObjectId(driver_id)
+        except Exception as e:
+            return jsonify({"error": "Invalid Driver ID format"}), 400
+
+        # Query the optimized_schedule collection for schedules associated with the driver
+        db = current_app.mongo_db['optimized_schedule']
+        schedules = list(db.find({"driverId": driver_obj_id}))
+
+        # If no schedules are found, return a message
+        if not schedules:
+            return jsonify({"message": "No schedules found for this driver"}), 404
+
+        # Convert ObjectId to string for JSON serialization
+        schedules = convert_objectid(schedules)
+
+        # Return the schedules
+        return jsonify({"schedules": schedules}), 200
+
+    except Exception as e:
+        print(f"Error in get_schedules_by_driver: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+    
+
+
+@main.route('/api/completed_trips/driver/<driver_id>', methods=['GET'])
+def get_completed_trips_by_driver(driver_id):
+    try:
+        # Convert driver_id to ObjectId
+        driver_obj_id = driver_id
+
+        # Query the trips collection
+        db = current_app.mongo_db['trips']
+        trips = list(db.find({"driver_id": driver_obj_id}))
+
+        # Convert ObjectId to string for JSON serialization
+        trips = convert_objectid(trips)
+
+        return jsonify({"trips": trips}), 200
+    except Exception as e:
+        print(f"Error in get_trips_by_driver: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
