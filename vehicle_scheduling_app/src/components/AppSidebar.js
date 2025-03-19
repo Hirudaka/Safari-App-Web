@@ -36,11 +36,20 @@ const AppSidebar = () => {
       }}
     >
       <CSidebarHeader className="border-bottom">
-        <CSidebarBrand to="/">
-          {/* <CIcon customClassName="sidebar-brand-full" icon={logo} height={32} />
-          <CIcon customClassName="sidebar-brand-narrow" icon={sygnet} height={32} /> */}
-          <h5>Admin</h5>
-        </CSidebarBrand>
+        <img
+          src={'/src/assets/images/JungleLogo.png'}
+          style={{
+            width: '110px',
+            height: 'auto',
+            marginBottom: '10px',
+            justifyContent: 'center',
+            textAlign: 'center',
+            marginRight: '15px',
+            alignItems: 'center',
+          }}
+          alt="My Image"
+        />
+        <h6>Admin Panel</h6>
         <CCloseButton
           className="d-lg-none"
           dark

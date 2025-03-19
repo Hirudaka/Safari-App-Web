@@ -22,48 +22,42 @@ const _nav = [
     name: 'Dashboard',
     to: '/dashboard',
     icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
-    badge: {
-      color: 'info',
-      text: 'NEW',
-    },
   },
-
   {
     component: CNavItem,
-    name: 'Pages',
-    icon: <CIcon icon={cilStar} customClassName="nav-icon" />,
-    items: [
-      {
-        component: CNavItem,
-        name: 'Schedules',
-        to: '/schedules',
-      },
-      {
-        component: CNavItem,
-        name: 'Drivers',
-        to: '/drivers',
-      },
-      {
-        component: CNavItem,
-        name: 'Logout',
-        to: '/',
-      },
-      {
-        component: CNavItem,
-        name: 'Register Driver',
-        to: '/registerDriver',
-      },
-      {
-        component: CNavItem,
-        name: 'Error 404',
-        to: '/404',
-      },
-      {
-        component: CNavItem,
-        name: 'Error 500',
-        to: '/500',
-      },
-    ],
+    name: 'Schedules',
+    to: '/schedules',
+    icon: <CIcon icon={cilNotes} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Drivers',
+    to: '/drivers',
+    icon: <CIcon icon={cilCursor} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Register Driver',
+    to: '/registerDriver',
+    icon: <CIcon icon={cilPencil} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Logout',
+    to: '/',
+    icon: <CIcon icon={cilExternalLink} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Error 404',
+    to: '/404',
+    icon: <CIcon icon={cilPuzzle} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Error 500',
+    to: '/500',
+    icon: <CIcon icon={cilPuzzle} customClassName="nav-icon" />,
   },
 ]
 
