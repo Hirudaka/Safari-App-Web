@@ -3,6 +3,7 @@ from app import create_app
 import logging
 from logging.handlers import RotatingFileHandler
 import sys
+from flask_cors import CORS
 
 # Configure logging to output to stdout
 logging.basicConfig(
@@ -38,6 +39,10 @@ def run_server():
         # Explicitly create production app
         application = create_app('production')
         
+        # Apply CORS to the application
+        CORS(application, resources={r"/*": {"origins": "*"}})
+        logger.info("CORS enabled for all origins")
+        
         host = '0.0.0.0'
         port = 8080
         threads = 4
@@ -59,4 +64,5 @@ def run_server():
         sys.exit(1)
 
 if __name__ == '__main__':
+    configure_logging()  # Call the logging configuration function
     run_server()
