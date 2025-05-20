@@ -34,7 +34,7 @@ const Schedules = () => {
   const fetchSchedules = async () => {
     setLoading(true)
     try {
-      const response = await fetch('http://127.0.0.1:5001/api/optimized_schedule')
+      const response = await fetch('https://nasa-api-ennr.onrender.com/api/optimized_schedule')
       const data = await response.json()
       if (data.optimized_schedule && Array.isArray(data.optimized_schedule)) {
         setSchedules(data.optimized_schedule)
@@ -56,7 +56,9 @@ const Schedules = () => {
   const generateSchedules = async () => {
     setLoading(true)
     try {
-      const response = await fetch('http://127.0.0.1:5001/api/schedule', { method: 'GET' })
+      const response = await fetch('https://nasa-api-ennr.onrender.com/api/schedule', {
+        method: 'GET',
+      })
       if (response.ok) {
         await fetchSchedules()
       }

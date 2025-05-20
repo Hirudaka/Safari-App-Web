@@ -27,7 +27,7 @@ const Drivers = () => {
   useEffect(() => {
     async function fetchDrivers() {
       try {
-        const response = await fetch('http://127.0.0.1:5001/get_drivers') // Replace with your actual API endpoint
+        const response = await fetch('https://nasa-api-ennr.onrender.com/get_drivers') // Replace with your actual API endpoint
         const data = await response.json()
         setDrivers(data.drivers) // Set the fetched drivers to state
       } catch (error) {

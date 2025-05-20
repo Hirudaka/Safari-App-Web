@@ -38,7 +38,7 @@ const Dashboard = () => {
   // Function to fetch trips data
   const fetchTrips = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5001/api/trips')
+      const response = await fetch('https://nasa-api-ennr.onrender.com/api/trips')
       const data = await response.json()
       console.log('refreshing')
       setTrips(data.trips)
@@ -283,7 +283,7 @@ const Dashboard = () => {
 
   const endTrip = async (tripId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:5001/end_trip/${tripId}`, {
+      const response = await fetch(`https://nasa-api-ennr.onrender.com/end_trip/${tripId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -27,7 +27,7 @@ const Trip = () => {
   useEffect(() => {
     async function fetchTripDetails() {
       try {
-        const response = await fetch(`http://127.0.0.1:5001/api/trips/${tripId}`)
+        const response = await fetch(`https://nasa-api-ennr.onrender.com/api/trips/${tripId}`)
         const data = await response.json()
         if (response.ok) {
           setTrip(data)
@@ -44,7 +44,7 @@ const Trip = () => {
 
     async function fetchDrivers() {
       try {
-        const response = await fetch('http://127.0.0.1:5001/get_drivers')
+        const response = await fetch('https://nasa-api-ennr.onrender.com/get_drivers')
         const data = await response.json()
         setDrivers(data.drivers)
       } catch (error) {

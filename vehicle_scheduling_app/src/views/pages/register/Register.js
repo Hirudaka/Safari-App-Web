@@ -35,7 +35,7 @@ const Register = () => {
     setLoading(true)
     setMessage('')
     try {
-      const response = await fetch('http://127.0.0.1:5001/register_driver', {
+      const response = await fetch('https://nasa-api-ennr.onrender.com/register_driver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
