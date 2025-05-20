@@ -11,7 +11,6 @@ from app.models import Trip
 from .genetic_algorithm import get_vehicle_data_from_db,fetch_and_schedule_for_next_10_drivers
 # from app.hybrid import fetch_and_schedule_for_next_10_drivers_hybrid,compare_and_select_best_schedule
 from app.hybrid import fetch_and_schedule_for_next_10_drivers_hybrid
-from app.algorithmHandler import run_all_algorithms,run_multi_objective_optimization
 from app.genetic_algorithm import run_genetic_algorithm
 from datetime import datetime
 from bson import ObjectId
