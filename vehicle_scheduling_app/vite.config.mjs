@@ -48,6 +48,7 @@ export default defineConfig(() => {
     server: {
       host: '0.0.0.0',
       port: 4000,
+      allowedHosts: ['nasa-ui.onrender.com'],
       proxy: {
         // https://vitejs.dev/config/server-options.html
       },
