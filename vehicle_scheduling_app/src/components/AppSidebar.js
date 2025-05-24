@@ -36,19 +36,6 @@ const AppSidebar = () => {
       }}
     >
       <CSidebarHeader className="border-bottom">
-        <img
-          src={'/src/assets/images/JungleLogo.png'}
-          style={{
-            width: '110px',
-            height: 'auto',
-            marginBottom: '10px',
-            justifyContent: 'center',
-            textAlign: 'center',
-            marginRight: '15px',
-            alignItems: 'center',
-          }}
-          alt="My Image"
-        />
         <h6>Admin Panel</h6>
         <CCloseButton
           className="d-lg-none"

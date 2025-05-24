@@ -16,6 +16,7 @@ import {
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilLockLocked, cilUser } from '@coreui/icons'
+import jungleLogo from 'src/assets/images/wildwaylogo2.png'
 
 const Login = () => {
   const [username, setUsername] = useState('')
@@ -90,10 +91,11 @@ const Login = () => {
                 <CCardBody className="text-center">
                   <div>
                     <img
-                      src={'/src/assets/images/JungleLogo.png'}
-                      style={{ width: '250px', height: 'auto', marginBottom: '10px' }}
-                      alt="My Image"
+                      src={jungleLogo}
+                      style={{ width: '150px', height: 'auto', marginBottom: '10px' }}
+                      alt="Jungle Logo"
                     />
+
                     <p>
                       Experience the Wonders of Wildlife – Where Nature, Adventure, and Serenity
                       Come Together!
